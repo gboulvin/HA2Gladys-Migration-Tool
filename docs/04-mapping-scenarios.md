@@ -193,6 +193,26 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 | Automatisations à plusieurs rôles (`choose` sur `trigger.id`) | 🔁 réécriture |
 | Tout ce qui contient un template | ✋ |
 
+## 8 bis. Scènes HA (instantanés d'états) — V1 (S4)
+
+**À ne pas confondre** : une scène HA est un **instantané d'états** (« Soirée cinéma » = lampe du salon à 20 %, volets fermés), sans déclencheur ni condition. L'équivalent Gladys d'une automatisation HA est une scène Gladys, mais l'équivalent d'une scène HA est une **scène Gladys sans déclencheur**, que l'utilisateur lance à la main (bouton du tableau de bord, application, assistant vocal).
+
+**Pourquoi dès la V1** : ces « ambiances » sont très utilisées. Leur conversion est **simple**, car elle ne demande ni déclencheur, ni condition, ni mode d'exécution. Il suffit d'une liste d'actions `device.set-value` en parallèle. Le schéma de Gladys accepte une scène sans déclencheur (`triggers` est un tableau, éventuellement vide, `server/models/scene.js`).
+
+| Point | Règle |
+|---|---|
+| **Source** | Mode A et B : entités `scene.*` (`get_states`) et configuration par la route REST de HA `/api/config/scene/config/<id>` (administrateur, lit `scenes.yaml`). Mode C : `scenes.yaml` de la sauvegarde. *Détail à ajouter en 02.* |
+| **Périmètre** | Scènes **créées dans HA** (éditeur ou YAML), avec un `id`. Les scènes **fournies par une intégration** (scènes Hue, Tuya…) sont exclues : elles vivent dans l'appareil ou le cloud du fabricant. Elles reviennent à l'intégration Gladys correspondante, si elle les expose. |
+| **Traduction** | Une action `device.set-value` par fonction, toutes **en parallèle** (même groupe), comme HA applique les états d'une scène simultanément |
+| **États et attributs pris en charge en V1** | Marche / arrêt (lumières, prises, interrupteurs, ventilateurs), **luminosité**, **position** et ouverture / fermeture des volets, **consigne** de température. Couleur et température de couleur **si le catalogue déclare la conversion** pour l'intégration (§ 4). |
+| **Attribut non convertible** (effet, transition, mode de chauffage sans table…) | La scène est ⚠️ **partielle**. Le rapport liste ce qui manque, et l'utilisateur choisit de l'importer ainsi ou non. |
+| **Appareil non migré** | 🔗 bloquée par un appareil, comme pour les automatisations (§ 2.3) |
+| **Activation** | Une scène sans déclencheur ne se lance jamais toute seule. Elle est donc créée **active dans les deux modes** : pas de risque de double exécution en coexistence. |
+| **Nom et étiquette** | Nom de la scène HA, étiquette « Home Assistant » (§ 7) |
+| **Appel depuis une automatisation (lot 2)** | Les actions de la scène sont recopiées dans la scène Gladys appelante (§ 3.3), ou bien la scène importée est lancée par `scene.start` en dernière position. *Choix à faire au lot 2.* |
+
+**Conséquence sur la V1** : les **tables de valeurs et d'attributs** du catalogue (§ 4) passent en V1, pour le sous-ensemble ci-dessus. La conversion des **automatisations** reste en V2.
+
 ## 9. Tests
 
 En complément de 06 :
@@ -206,10 +226,9 @@ En complément de 06 :
 |---|---|
 | S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
 | S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S4 | Les **scènes HA** (instantanés d'états) sont migrées **dès la V1**, en scènes Gladys sans déclencheur (§ 8 bis, ex-Q04-3). |
 | S3 | Les pistes d'évolution du cœur (§ 6) sont suivies dans le **fil du forum** du projet. Le bogue P3 (déclencheur MQTT avec joker) fait l'objet d'un **ticket** sur `GladysAssistant/Gladys` (ex-Q04-4). |
 
 ## 11. Questions ouvertes
 
-| # | Question |
-|---|---|
-| Q04-3 | **Scènes HA** : les migrer aussi **pour elles-mêmes** (scène Gladys sans déclencheur, lancée à la main), en plus de leur traduction dans les automatisations qui les appellent ? |
+*Aucune pour l'instant.*
