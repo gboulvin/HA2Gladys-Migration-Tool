@@ -115,6 +115,8 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D20 | Les 10 premières intégrations sont un **point de départ, pas une limite**. Le catalogue V1 y ajoute **Zigbee (ZHA et Zigbee2MQTT) et Shelly**. L'objectif à terme est de couvrir le maximum d'appareils, idéalement **tous**. Les intégrations de type **service**, sans appareil physique (météo, calendrier, notifications…), sont migrées elles aussi. | Cadrage du 2026-11-17 (ex-Q14) |
 | D21 | Le catalogue distant (D12) s'appuie sur le **tracker communautaire** de William-De71, développeur Gladys très actif qui avait été pressenti pour cet outil. Le format sera enrichi avec lui. | Cadrage du 2026-11-17 (ex-Q15) |
 | D22 | Les **historiques de données** des appareils migrés font partie de la **V1**. Voir § 9 ter. | Cadrage du 2026-11-17 |
+| D23 | Historiques : on importe **les deux niveaux**, les états bruts et les statistiques long terme. | Cadrage du 2026-11-17 (ex-Q16) |
+| D24 | Historiques : **tout l'historique** est importé, sans limite de profondeur. Avant l'import, l'outil **estime le volume** nécessaire et le compare à **l'espace disque disponible**. Il avertit l'utilisateur, ou bloque l'import, si la place manque. | Cadrage du 2026-11-17 (ex-Q17) |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -204,9 +206,7 @@ Ce sujet a sa propre section de spec : `07-historiques.md`.
 
 | # | Question | Section concernée |
 |---|---|---|
-| — | *Q1 à Q15 sont tranchées : voir D7 à D21.* | — |
-| Q16 | Historiques : importer les **états bruts** (quelques jours seulement dans HA par défaut), les **statistiques long terme** (agrégats horaires conservés indéfiniment), ou les deux ? | 07 |
-| Q17 | Historiques : quelle **profondeur maximale** proposer par défaut (tout, 1 an, 2 ans…), compte tenu du volume et de la durée de l'import ? | 07 |
+| — | *Q1 à Q17 sont tranchées : voir D7 à D24. Aucune question ouverte à ce stade.* | — |
 
 ## 12. Glossaire
 
