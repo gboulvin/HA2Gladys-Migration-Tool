@@ -11,7 +11,13 @@ Les affirmations sur Gladys renvoient au code (chemins relatifs au dépôt Glady
 
 ## 1. Vue d'ensemble
 
-L'outil est un **service du cœur de Gladys** (D1), nommé provisoirement **`home-assistant-migration`**. Il se compose d'un backend dans `server/services/home-assistant-migration/` et d'une interface dans `front/src/routes/integration/all/home-assistant-migration/`.
+L'outil est un **service du cœur de Gladys** (D1), nommé **`migration-home-assistant`** (A8). Il se compose d'un backend dans `server/services/migration-home-assistant/` et d'une interface dans `front/src/routes/settings/settings-migration/` (voir § 9).
+
+**Ouverture à d'autres systèmes (A8).** Le principe pourra être réutilisé pour migrer depuis d'autres solutions domotiques. Le code est donc séparé en deux parties :
+- une partie **générique** : inventaire, analyseur, orchestrateur, exécuteurs, journal, coffre des secrets ;
+- une partie **propre à HA** : les sources (API et sauvegarde), la normalisation vers l'inventaire et la conversion des automatisations.
+
+Les tables du journal sont nommées `t_migration_*` et portent une colonne `source` (`home-assistant`). Un futur outil, par exemple `migration-jeedom`, pourra ainsi les réutiliser sans renommage. On n'extrait pas pour autant un framework générique dès la V1 : on le fera quand un deuxième système le justifiera.
 
 ```
                     ┌─────────────────────── Gladys (cœur) ─────────────────────────────────────────┐
@@ -143,9 +149,9 @@ Il conserve la correspondance entre chaque élément HA et l'objet Gladys créé
 
 Gladys n'a aucun marqueur d'origine sur ses objets (voir la note de recherche). Plutôt que de modifier les modèles existants, on ajoute des tables propres au service, avec une migration Sequelize :
 
-- **`t_ha_migration_run`** : une exécution de l'outil (source, mode, phase courante, dates, résumé).
-- **`t_ha_migration_item`** : un élément HA dans une exécution. Champs : type (`area`, `device`, `entity`, `person`, `integration`, `automation`), id HA, empreinte du contenu, statut, choix de l'utilisateur, **type et id de l'objet Gladys créé**, erreur éventuelle.
-- **`t_ha_migration_history_cursor`** : par fonction Gladys, l'entité HA source et la dernière date importée (états et statistiques séparément).
+- **`t_migration_run`** : une exécution de l'outil (`source`, mode, phase courante, dates, résumé).
+- **`t_migration_item`** : un élément source dans une exécution. Champs : type (`area`, `device`, `entity`, `person`, `integration`, `automation`), id source, empreinte du contenu, statut, choix de l'utilisateur, **type et id de l'objet Gladys créé ou modifié**, **nature de l'opération** (création ou modification), **valeurs d'avant** pour une modification (§ 5.4), erreur éventuelle.
+- **`t_migration_history_cursor`** : par fonction Gladys, l'entité HA source, la **plage de dates importée** (états et statistiques séparément) et la date du plus ancien état propre à Gladys au moment de l'import (§ 5.5).
 
 Les variables de service (`t_variable`) ont été écartées. Elles sont prévues pour des paires clé-valeur et n'offrent ni requêtes ni intégrité référentielle sur des milliers d'éléments.
 
@@ -163,9 +169,36 @@ Les variables de service (`t_variable`) ont été écartées. Elles sont prévue
 | Élément HA supprimé depuis | Signalé. L'objet Gladys n'est pas supprimé automatiquement. |
 | Historique | Import incrémental à partir du curseur |
 
-### 5.4 Réversibilité
+### 5.4 Réversibilité : la garantie de retour à l'état initial (A9)
 
-« Annuler la migration » supprime les objets Gladys listés dans le journal, en ordre inverse (scènes, puis historiques, appareils, utilisateurs, pièces vides), après une confirmation qui récapitule ce qui sera supprimé. **Les intégrations installées ne sont pas désinstallées automatiquement** : l'utilisateur peut avoir créé d'autres appareils avec elles entre-temps. La liste lui est proposée.
+**Engagement envers l'utilisateur** : si la migration se passe mal, il peut l'annuler et retrouver **ses deux systèmes exactement comme avant**.
+
+- **Côté HA**, rien n'est à faire : l'outil n'y écrit jamais (principe 2 de la vision).
+- **Côté Gladys**, l'annulation défait **uniquement ce que l'outil a fait**, d'après le journal, en ordre inverse :
+
+| Ce que l'outil a fait | Ce que l'annulation fait |
+|---|---|
+| Créer une scène | La supprimer |
+| Importer de l'historique | Supprimer **exactement la plage importée** (§ 5.5), jamais les valeurs propres à Gladys |
+| Créer un appareil | Le supprimer, ainsi que son historique |
+| **Modifier** un appareil qui existait déjà (nom, pièce) | Restaurer les **valeurs d'avant**, gardées dans le journal |
+| Créer un utilisateur | Le supprimer |
+| Créer une pièce | La supprimer si elle est vide |
+| Installer une intégration externe | La désinstaller |
+| Configurer une intégration qui ne l'était pas | Effacer cette configuration |
+
+**Règles qui rendent cette garantie tenable :**
+1. **L'outil ne remplace jamais une configuration existante.** Il ne préremplit que des intégrations non configurées. On n'a ainsi jamais à garder une copie d'un ancien secret pour le restaurer.
+2. Une modification n'est permise que sur des champs dont la valeur d'avant peut être enregistrée et restaurée (nom, pièce). Toute autre modification d'un objet existant est hors du périmètre de l'outil.
+3. **Ce que l'utilisateur a fait lui-même depuis la migration est préservé et signalé.** Si une scène créée à la main utilise un appareil importé, ou si une intégration installée par l'outil porte aussi des appareils ajoutés à la main, l'annulation l'affiche avant confirmation. L'utilisateur choisit alors de garder ces éléments (et ce dont ils dépendent) ou de tout annuler.
+4. L'annulation est elle-même une tâche de fond, avec progression et rapport.
+
+### 5.5 Historique sur un appareil qui existait déjà
+
+En coexistence, un appareil peut déjà exister dans Gladys et avoir son propre historique, par exemple un capteur Zigbee2MQTT partagé. Pour ne jamais mélanger les deux historiques, et pouvoir annuler proprement :
+- l'import HA s'arrête **à la date du plus ancien état propre à Gladys** pour cette fonction (`device.getOldestStateFromDeviceFeatures`, `server/lib/device/`) ;
+- cette date et la plage importée sont enregistrées dans `t_migration_history_cursor` ;
+- l'annulation supprime exactement cette plage.
 
 ## 6. Rapprochement des appareils (D16)
 
@@ -230,9 +263,29 @@ Le cœur limite le corps des requêtes JSON à 100 ko et n'accepte pas l'envoi d
 3. **Comparer** à l'espace libre (`system.getDiskSpace`, `server/lib/system/system.getDiskSpace.js`), avec une marge de sécurité.
 4. **Décider** : si l'espace suffit avec la marge, l'import est proposé. S'il suffit sans la marge, un avertissement est affiché. S'il ne suffit pas, l'import est bloqué, avec la liste des entités les plus volumineuses pour que l'utilisateur puisse en écarter.
 
-## 9. Interface (aperçu)
+## 9. Interface et points d'entrée (A10)
 
-L'interface est un **assistant** qui suit les phases (§ 6 et 6 bis de la vision), dans une page d'intégration du front. Elle reprend les conventions de Gladys : Preact, actions par page, traductions **en, fr, de et es** contrôlées en CI, et messages WebSocket déclarés dans `WEBSOCKET_MESSAGE_TYPES`. Le serveur ne renvoie que des **codes**, que le front traduit (pas d'i18n côté serveur). L'écran par écran relève de la section 05.
+### 9.1 Points d'entrée
+
+| # | Où | Comportement |
+|---|---|---|
+| 1 | **Premier lancement de Gladys** : écran d'accueil (`front/src/routes/signup/1-welcome/WelcomeTab.jsx`), à côté de « Restaurer une sauvegarde » | Une ligne secondaire « Je viens de Home Assistant ». La migration exige un administrateur : l'utilisateur crée donc d'abord son compte et sa maison (étapes existantes), puis l'assistant de migration s'ouvre au lieu du tableau de bord. |
+| 2 | **Paramètres → Migration** : nouvelle page `/dashboard/settings/migration`, à côté de « Sauvegardes » et « Tâches de fond » | Page d'accueil de la migration. Elle liste les systèmes sources (Home Assistant pour l'instant, d'autres plus tard, A8) et l'historique des exécutions, et c'est là qu'on relance, resynchronise, passe en bascule ou annule. |
+| 3 | **Catalogue des intégrations** | Une carte « Home Assistant » qui renvoie vers la page Migration. C'est là qu'un utilisateur cherchera naturellement « Home Assistant ». |
+| 4 | **Tâches de fond** (page existante) | Les tâches longues de l'outil (installation, historiques, annulation) y apparaissent automatiquement via `gladys.job`. |
+
+Une page dans **Paramètres** est préférable à la page **Système**, qui regroupe des informations techniques (version, disque, conteneurs). Une page dédiée reste lisible quand d'autres sources s'y ajouteront.
+
+### 9.2 Conventions
+
+L'interface est un **assistant** qui suit les phases (§ 6 et 6 bis de la vision). Elle reprend les conventions de Gladys : Preact, actions par page, traductions **en, fr, de et es** contrôlées en CI, et messages WebSocket déclarés dans `WEBSOCKET_MESSAGE_TYPES`. Le serveur ne renvoie que des **codes**, que le front traduit (pas d'i18n côté serveur). L'écran par écran relève de la section 05.
+
+### 9.3 De la coexistence à la bascule (A11)
+
+À la fin d'une migration en coexistence, l'outil explique que, pour se séparer définitivement de HA, il suffit de **relancer l'outil en mode bascule**. La relance :
+1. resynchronise ce qui a changé dans HA depuis (D13) ;
+2. **active** les scènes importées désactivées (choix par scène) ;
+3. traite les **dépendances à HA** restées en place, au premier rang desquelles le Zigbee2MQTT partagé (cas QA3). Si Zigbee2MQTT tournait comme module complémentaire de HA, il disparaîtra avec lui. L'outil propose alors de le faire gérer par Gladys **en reprenant ses données** (configuration, base des appareils appairés, sauvegarde du coordinateur), afin d'éviter tout réappairage. Ces données se trouvent dans la sauvegarde HA, dans l'archive du module complémentaire. *Format et faisabilité à vérifier en section 02.* Le passage de ZHA à Zigbee2MQTT ne permet pas cette reprise : il demande un réappairage, et l'outil le dit clairement.
 
 ## 10. Testabilité
 
@@ -246,7 +299,7 @@ Le dépôt Gladys exige une **couverture de 100 % des lignes modifiées**. L'arc
 ## 11. Arborescence prévisionnelle
 
 ```
-server/services/home-assistant-migration/
+server/services/migration-home-assistant/
 ├── index.js                     # start/stop, enregistrement du service
 ├── api/                         # contrôleur et routes (admin)
 ├── lib/
@@ -262,9 +315,9 @@ server/services/home-assistant-migration/
 │   └── vault/                   # coffre éphémère des secrets
 ├── catalog-snapshot.json        # instantané embarqué du catalogue
 └── utils/
-server/migrations/               # création des tables t_ha_migration_*
-server/models/                   # modèles des tables t_ha_migration_*
-front/src/routes/integration/all/home-assistant-migration/
+server/migrations/               # création des tables t_migration_*
+server/models/                   # modèles des tables t_migration_*
+front/src/routes/settings/settings-migration/
 ```
 
 ## 12. Décisions d'architecture proposées
@@ -275,17 +328,18 @@ Elles seront formalisées en ADR une fois cette section validée.
 |---|---|
 | A1 | Service du cœur, réservé aux administrateurs (confirmation de D1, § 2) |
 | A2 | Inventaire normalisé (modèle pivot) commun aux deux sources (§ 4) |
-| A3 | Persistance dans des tables dédiées `t_ha_migration_*`, sans modifier les modèles existants (§ 5.2) |
+| A3 | Persistance dans des tables dédiées `t_migration_*`, sans modifier les modèles existants (§ 5.2) |
 | A4 | Règles de rapprochement déclarées dans le catalogue, et non codées par intégration (§ 6.2) |
 | A5 | Création d'appareil uniquement à partir du payload découvert (§ 6.3) |
 | A6 | Coffre éphémère des secrets, sauvegarde en fichier temporaire purgé (§ 7.2) |
 | A7 | Modifications du cœur requises : route de téléversement en flux (§ 7.3), dépendance YAML, déchiffrement des sauvegardes HA (§ 3.1). À présenter sur le forum (D18). |
+| A8 | Nom du service : **`migration-home-assistant`**. Code séparé entre une partie générique et une partie propre à HA, tables `t_migration_*` avec colonne `source`, pour d'autres systèmes à venir (ex-QA1). |
+| A9 | **Garantie de retour à l'état initial** : l'annulation ne défait que ce que l'outil a fait, y compris la restauration des valeurs modifiées. L'outil ne remplace jamais une configuration existante (§ 5.4 et 5.5, ex-QA2). |
+| A10 | Points d'entrée : premier lancement (à côté de « Restaurer une sauvegarde »), **Paramètres → Migration**, carte dans le catalogue des intégrations (§ 9.1, ex-QA4). |
+| A11 | Passage de la coexistence à la bascule en **relançant l'outil en mode bascule**, avec reprise des données de Zigbee2MQTT si possible (§ 9.3, ex-QA3). |
 
 ## 13. Questions ouvertes
 
 | # | Question |
 |---|---|
-| QA1 | Nom définitif du service : `home-assistant-migration`, `ha-import`… ? |
-| QA2 | Annulation (§ 5.4) : faut-il aussi proposer de supprimer **l'historique importé** sur les appareils qui existaient déjà dans Gladys avant la migration ? |
-| QA3 | Mode coexistence avec Zigbee2MQTT partagé : Gladys se connecte au Zigbee2MQTT de HA. Si l'utilisateur arrête HA plus tard (et avec lui son Zigbee2MQTT), l'outil doit-il **aider à basculer** vers un Zigbee2MQTT géré par Gladys ? |
-| QA4 | Où apparaît l'outil dans le catalogue des intégrations du front (catégorie, voir `docs/specs/integration-catalog-categories.md`) ? Faut-il en plus une **mise en avant à l'accueil** pour les nouveaux utilisateurs ? |
+| — | *QA1 à QA4 sont tranchées : voir A8 à A11.* |
