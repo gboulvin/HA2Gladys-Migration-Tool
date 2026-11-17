@@ -32,7 +32,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 
 | Lot | Contenu | Priorité |
 |---|---|---|
-| **Lot 1 — Appareils** | Appareils et entités HA, pièces (*areas*), rattachement aux services Gladys | V1 |
+| **Lot 1 — Appareils** | Appareils et entités HA, pièces (*areas*), personnes HA vers utilisateurs Gladys, rattachement aux services Gladys | V1 |
 | **Lot 2 — Scénarios** | Automatisations HA (déclencheurs, conditions, actions) converties en scènes Gladys | V2 |
 | **Transverse** | Rapport de compatibilité, suggestions d'intégrations alternatives, canevas de message pour le forum, rapport final | V1 |
 
@@ -42,8 +42,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 - Tableaux de bord (*dashboards* Lovelace).
 - Modules complémentaires (*add-ons*) et leur configuration.
 - Scripts HA appelés de façon autonome (à réévaluer au lot 2 : un script appelé par une automatisation pourrait être « déplié » dans la scène).
-- Utilisateurs, personnes et suivi de présence (à réévaluer, voir § 11).
-- Synchronisation continue : l'import est une opération ponctuelle, éventuellement relancée, mais pas un miroir permanent.
+- Synchronisation continue : l'import est une opération ponctuelle. L'utilisateur peut le relancer pour récupérer les nouveautés de HA, mais il n'y a pas de miroir permanent (voir D13).
 
 ## 5. Principes directeurs
 
@@ -53,7 +52,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 4. **Contrôle utilisateur.** Rien n'est importé sans une sélection et une confirmation explicites.
 5. **Idempotence.** Relancer un import ne crée pas de doublons. Les éléments déjà importés sont reconnus.
 6. **Réversibilité.** Un import peut être annulé : on supprime de Gladys ce qu'il a créé.
-7. **Confidentialité.** Tout reste local. Aucune donnée de l'installation n'est envoyée à un service tiers. Le jeton HA et la sauvegarde ne sont pas conservés au-delà du besoin.
+7. **Confidentialité.** Tout reste local. Aucune donnée de l'installation n'est envoyée à un service tiers. Le jeton HA, le mot de passe de la sauvegarde et la sauvegarde elle-même restent en mémoire le temps de l'analyse et ne sont jamais enregistrés. L'utilisateur est informé de la façon dont chaque secret est traité (voir D10).
 
 ## 6. Parcours utilisateur (vue d'ensemble)
 
@@ -85,6 +84,11 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 | D6 | Spécifications en **français**. Code, commentaires et commits en **anglais**. | Cadrage du 2026-11-17 |
 | D7 | **Contribution officielle** au dépôt `GladysAssistant/Gladys`, à l'initiative de son fondateur (Pierre-Gilles). On suit donc les conventions, l'outillage et le processus de revue du projet Gladys. | Cadrage du 2026-11-17 (ex-Q1) |
 | D8 | Intégrations HA prioritaires dans le catalogue V1 : **Zigbee2MQTT, MQTT, Z-Wave, Philips Hue, Tasmota, Shelly, Matter**. | Cadrage du 2026-11-17 (ex-Q6) |
+| D9 | Versions supportées : **Gladys 5.3 minimum**, **HA dans sa version courante** au moment de la sortie. L'outil évoluera avec les versions des deux logiciels, ce qui suppose de suivre leurs changements de format. | Cadrage du 2026-11-17 (ex-Q2) |
+| D10 | Les **mots de passe** sont demandés à l'utilisateur quand c'est nécessaire : sauvegarde HA chiffrée, intégrations et appareils qui en exigent un. Ils ne quittent pas l'instance. L'utilisateur est **prévenu** de l'usage et du stockage de chaque secret (voir § 9 bis). | Cadrage du 2026-11-17 (ex-Q3) |
+| D11 | Les **personnes HA** sont migrées vers des **utilisateurs Gladys**, avec le même processus d'analyse, de sélection et de rapport que les appareils. | Cadrage du 2026-11-17 (ex-Q5) |
+| D12 | Le **catalogue de correspondances** est **distant**, collaboratif et alimenté de la façon la plus automatisée possible. Il est mis à jour indépendamment des versions de Gladys. | Cadrage du 2026-11-17 (ex-Q7) |
+| D13 | **Resynchronisation à la demande** : relancer l'outil détecte les nouveautés de HA (appareils, personnes, automatisations) et les propose à l'import. Il n'y a pas de synchronisation en direct. | Cadrage du 2026-11-17 (ex-Q8) |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -126,6 +130,19 @@ Le **catalogue de correspondances** (intégration HA → service Gladys, alterna
 
 L'outil doit détecter ces situations et les expliquer. Le détail sera traité dans `03-mapping-devices.md` et `05-ux.md`.
 
+## 9 bis. Traitement des secrets
+
+L'utilisateur doit savoir où se trouvent ses secrets et ce qu'ils deviennent. Ce qui suit a été vérifié dans le code de Gladys ; le comportement de HA est à confirmer dans `02-extraction-ha.md`.
+
+| Secret | Où il se trouve | Ce qu'en fait l'outil |
+|---|---|---|
+| Jeton d'accès longue durée HA | Saisi par l'utilisateur | Gardé en mémoire le temps de l'analyse, jamais enregistré. L'utilisateur est invité à le révoquer dans HA après la migration. |
+| Mot de passe ou clé de la sauvegarde HA | Saisi par l'utilisateur | Gardé en mémoire le temps du déchiffrement, jamais enregistré. |
+| Identifiants des intégrations HA (broker MQTT, comptes cloud…) | **En clair** dans la configuration de HA (`.storage/`), donc en clair dans la sauvegarde une fois déchiffrée *(à confirmer)* | Proposés pour préremplir la configuration du service Gladys cible, uniquement avec l'accord explicite de l'utilisateur. |
+| Configuration des services Gladys | **En clair** dans la base SQLite de Gladys (table `t_variable`, sans chiffrement : `server/models/variable.js`). Les sauvegardes Gladys Plus, elles, sont chiffrées. | L'outil ne change rien à ce fonctionnement, mais l'écran de saisie le signale. |
+
+> ⚠️ Contrairement à ce qu'on pourrait supposer, ni HA ni Gladys ne chiffrent les identifiants qu'ils stockent localement. La protection repose sur l'accès à la machine. L'outil ne doit **pas créer de nouvelle copie** de ces secrets : pas de journaux, pas de fichiers temporaires laissés sur disque, rapport exporté expurgé.
+
 ## 10. Critères de réussite
 
 - Un utilisateur dont l'installation ne contient que des intégrations prises en charge peut migrer **tous ses appareils et leurs pièces en moins de 15 minutes**, sans saisie manuelle hormis la configuration des services Gladys requis.
@@ -137,14 +154,13 @@ L'outil doit détecter ces situations et les expliquer. Le détail sera traité 
 
 | # | Question | Section concernée |
 |---|---|---|
-| — | *Q1 et Q6 sont tranchées : voir D7 et D8.* | — |
-| Q2 | Quelles versions minimales de Gladys et de HA supporter ? | 01, 02 |
-| Q3 | Sauvegardes HA chiffrées (les sauvegardes récentes peuvent l'être) : demande-t-on la clé à l'utilisateur ? Quel est le comportement exact selon les versions ? *À vérifier.* | 02 |
+| — | *Q1, Q2, Q3, Q5, Q6, Q7 et Q8 sont tranchées : voir D7 à D13.* | — |
 | Q4 | Faut-il migrer les **étages** (*floors*) et les **étiquettes** (*labels*) de HA, alors que Gladys organise maisons et pièces différemment ? | 03 |
-| Q5 | Faut-il migrer les **personnes** HA vers les utilisateurs Gladys (utile pour les scénarios de présence) ? | 03, 04 |
-| Q7 | Où héberger le catalogue de correspondances (fichier JSON versionné dans le service, ou catalogue distant mis à jour indépendamment de Gladys) ? | 01, 03 |
-| Q8 | En mode coexistence, faut-il proposer une **resynchronisation** ultérieure (nouveaux appareils ajoutés dans HA) ? | 05 |
 | Q9 | Forum : copier-coller du canevas uniquement, ou lien pré-rempli vers le forum (si celui-ci le permet) ? | 05 |
+| Q10 | Adopter un **modèle de rapprochement** plutôt que de création : l'intégration Gladys cible découvre l'appareil, l'outil le rapproche de l'appareil HA par un identifiant matériel (IEEE, MAC, n° de série), puis applique nom et pièce. *Motif : les intégrations externes et Matter fixent elles-mêmes l'identifiant des appareils (voir note de recherche, § 7).* | 01, 03 |
+| Q11 | Réviser D8 : plusieurs intégrations natives de la liste (Philips Hue, Tasmota, Z-Wave JS UI) sont **dépréciées** dans Gladys au profit d'intégrations externes ; Shelly n'existe qu'en externe. Règle proposée : « natif s'il est maintenu, sinon l'intégration externe recommandée ». | 03 |
+| Q12 | Livrer une **version anglaise** de la spec dans `docs/specs/` avec la pull request vers Gladys, toutes les specs du dépôt Gladys étant en anglais. La spec de travail reste en français ici. | 01 |
+| Q13 | L'import d'une sauvegarde HA demande de **modifier le cœur** de Gladys (pas de téléversement de fichier, corps des requêtes limité à 100 ko). À faire valider par les mainteneurs. | 01, 02 |
 
 ## 12. Glossaire
 
