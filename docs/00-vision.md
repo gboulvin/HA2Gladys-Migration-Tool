@@ -100,7 +100,7 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D5 | Les scénarios non convertibles fidèlement sont signalés **« à refaire manuellement »**. Aucune traduction approchée n'est faite. | Cadrage du 2026-11-17 |
 | D6 | Spécifications en **français**. Code, commentaires et commits en **anglais**. | Cadrage du 2026-11-17 |
 | D7 | **Contribution officielle** au dépôt `GladysAssistant/Gladys`, à l'initiative de son fondateur (Pierre-Gilles). On suit donc les conventions, l'outillage et le processus de revue du projet Gladys. | Cadrage du 2026-11-17 (ex-Q1) |
-| D8 | Intégrations HA prioritaires dans le catalogue V1 : **Zigbee2MQTT, MQTT, Z-Wave, Philips Hue, Tasmota, Shelly, Matter**. | Cadrage du 2026-11-17 (ex-Q6) |
+| D8 | ~~Intégrations HA prioritaires dans le catalogue V1 : Zigbee2MQTT, MQTT, Z-Wave, Philips Hue, Tasmota, Shelly, Matter.~~ **Remplacée par D19.** | Cadrage du 2026-11-17 (ex-Q6) |
 | D9 | Versions supportées : **Gladys 5.3 minimum**, **HA dans sa version courante** au moment de la sortie. L'outil évoluera avec les versions des deux logiciels, ce qui suppose de suivre leurs changements de format. | Cadrage du 2026-11-17 (ex-Q2) |
 | D10 | Les **mots de passe** sont demandés à l'utilisateur quand c'est nécessaire : sauvegarde HA chiffrée, intégrations et appareils qui en exigent un. Ils ne quittent pas l'instance. L'utilisateur est **prévenu** de l'usage et du stockage de chaque secret (voir § 9 bis). | Cadrage du 2026-11-17 (ex-Q3) |
 | D11 | Les **personnes HA** sont migrées vers des **utilisateurs Gladys**, avec le même processus d'analyse, de sélection et de rapport que les appareils. | Cadrage du 2026-11-17 (ex-Q5) |
@@ -111,6 +111,7 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D16 | **Modèle de rapprochement** : l'outil ne fabrique pas d'appareils. L'intégration Gladys cible les découvre, et l'outil les rapproche des appareils HA par un identifiant matériel, puis leur applique nom et pièce. L'outil **installe lui-même les intégrations externes** nécessaires : liste de cases à cocher, puis validation, via l'API d'installation du store déjà présente dans le cœur. Voir § 6 bis. | Cadrage du 2026-11-17 (ex-Q10) |
 | D17 | La spec de travail reste **en français** dans ce dépôt. Une **version anglaise** est livrée dans `docs/specs/` avec la pull request vers Gladys. | Cadrage du 2026-11-17 (ex-Q12) |
 | D18 | Les **modifications du cœur** de Gladys (téléversement de sauvegarde, etc.) sont expliquées et argumentées dans un **fil dédié du forum Gladys**, ouvert par le porteur du projet. Pierre-Gilles valide l'ensemble des pull requests. | Cadrage du 2026-11-17 (ex-Q13) |
+| D19 | Le catalogue V1 couvre en priorité les **10 intégrations HA les plus utilisées** d'après le [tracker communautaire](https://william-de71.github.io/gladys-integrations-tracker/) : Met.no, Google Cast, Bluetooth, MQTT, Matter, UPnP/IGD, Tuya, IPP, DLNA et ESPHome. Toutes ont un équivalent Gladys, natif ou dans le store. Détail et limites de la source : [`research/ha-integrations-usage.md`](research/ha-integrations-usage.md). | Cadrage du 2026-11-17 (ex-Q11) |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -176,8 +177,9 @@ L'utilisateur doit savoir où se trouvent ses secrets et ce qu'ils deviennent. C
 
 | # | Question | Section concernée |
 |---|---|---|
-| — | *Q1 à Q10, Q12 et Q13 sont tranchées : voir D7 à D18.* | — |
-| Q11 | Réviser D8 : plusieurs intégrations natives de la liste (Philips Hue, Tasmota, Z-Wave JS UI) sont **dépréciées** dans Gladys au profit d'intégrations externes ; Shelly n'existe qu'en externe. Règle proposée : « natif s'il est maintenu, sinon l'intégration externe recommandée ». | 03 |
+| — | *Q1 à Q13 sont tranchées : voir D7 à D19.* | — |
+| Q14 | Ajouter au catalogue V1 **Zigbee (11ᵉ, 26 %) et Shelly (12ᵉ, 24,9 %)**, presque à égalité avec le 10ᵉ ? Zigbee est le premier protocole radio domotique, et son rapprochement par adresse IEEE est le plus simple à fiabiliser. | 03 |
+| Q15 | S'appuyer sur le **tracker communautaire** comme base du catalogue distant (D12), en accord avec son auteur, quitte à enrichir son format ? | 01, 03 |
 
 ## 12. Glossaire
 
