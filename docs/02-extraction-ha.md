@@ -69,7 +69,7 @@ Le mode A combine le meilleur des deux sources : automatisations résolues par H
 
 > ⚠️ Le mot de passe passe dans l'URL. La connexion doit donc être en HTTPS, ou rester sur le réseau local. Le mot de passe peut aussi apparaître dans les journaux d'accès de HA ou d'un proxy inverse. L'utilisateur en est averti, et pourra changer ce mot de passe dans HA après la migration.
 
-**Et s'il n'y a pas de sauvegarde récente ?** L'outil peut demander à HA d'en créer une (`backup/generate`). C'est **la seule écriture dans HA** envisagée. Elle ne modifie pas la configuration, mais déroge au principe 2 de la vision (« non destructif, lecture seule »). Voir Q02-1.
+**Et s'il n'y a pas de sauvegarde récente ? (E1)** L'outil **ne crée jamais de sauvegarde** : il reste en lecture seule (principe 2 de la vision). On part du principe qu'un utilisateur de HA sait en faire une. L'outil affiche la date de la plus récente, invite l'utilisateur à en lancer une nouvelle dans HA s'il le souhaite, puis à relancer la détection. En dernier recours seulement, un lien vers la page d'aide de HA sur les sauvegardes. Il est utile, mais devra être tenu à jour.
 
 ## 4. Mode A et C : lecture de la sauvegarde
 
@@ -192,7 +192,7 @@ Pour le mode C, on ne réimplémente **pas** l'intégralité du chargeur YAML de
 
 | Élément | Version de référence (HA 2026.11) | Politique proposée |
 |---|---|---|
-| `core.device_registry` | 3.4 | Majeure 3 acceptée (HA ≥ 2026.8). Majeure 2 (avant la scission des appareils) : à décider (Q02-2). |
+| `core.device_registry` | 3.4 | Majeure 3 uniquement, soit **HA ≥ 2026.8** (E2). Les formats antérieurs sont refusés avec un message explicite. |
 | `core.entity_registry` | 1.24 | Mineures connues acceptées |
 | `core.area_registry` / `floor_registry` | 1.9 / 1.3 | Idem |
 | `core.config_entries` | 1.5 | Idem |
@@ -222,10 +222,15 @@ Une **version plus récente qu'attendu** déclenche un avertissement, pas un ref
 
 En V1 (appareils, personnes, services, historiques), le **mode A** ne demande qu'**une** nouvelle dépendance, le lecteur tar, et aucune modification de route.
 
-## 10. Questions ouvertes
+## 10. Décisions
+
+| # | Décision |
+|---|---|
+| E1 | **Lecture seule stricte** : l'outil ne demande jamais à HA de créer une sauvegarde. L'utilisateur la fait lui-même, éventuellement aidé d'un lien vers l'aide de HA (ex-Q02-1). |
+| E2 | Sauvegardes et instances acceptées à partir de **HA 2026.8** (registre des appareils 3.x) (ex-Q02-2). |
+
+## 11. Questions ouvertes
 
 | # | Question |
 |---|---|
-| Q02-1 | Si aucune sauvegarde récente n'existe, autorise-t-on l'outil à demander à HA d'en **créer une** (`backup/generate`) ? C'est une écriture dans HA, contraire au principe de lecture seule, mais sans effet sur la configuration. Alternative : demander à l'utilisateur de la lancer lui-même dans HA. |
-| Q02-2 | Quelle **ancienneté minimale de HA** accepter pour une sauvegarde ? Proposition : HA ≥ 2026.8 (registre des appareils 3.x), soit environ quatre mois d'historique des versions. Les formats plus anciens demanderaient une normalisation supplémentaire. |
-| Q02-3 | Zigbee2MQTT installé comme module complémentaire de HA (01 § 9.3) : ses données sont dans l'archive de ce module, dans la sauvegarde du Supervisor. Leur emplacement exact (`/share/zigbee2mqtt` ou configuration du module) reste **à vérifier**, sur une vraie sauvegarde. Peut-on disposer de sauvegardes réelles anonymisées, de la communauté Gladys par exemple, pour cette vérification et pour les tests (section 06) ? |
+| Q02-3 | **Sauvegardes réelles anonymisées** pour vérifier l'emplacement des données de Zigbee2MQTT (module complémentaire, 01 § 9.3), le déchiffrement v2 et v3, et pour constituer les jeux de test (section 06). *En cours : le porteur du projet se renseigne auprès de la communauté.* |
