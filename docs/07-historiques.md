@@ -21,7 +21,7 @@ Gladys **supprime chaque jour** les états plus anciens que la durée de conserv
 **Règle (H1)** :
 1. Avant l'import, l'outil compare la date du plus ancien point à importer à la durée de conservation.
 2. Si elle la dépasse, l'utilisateur choisit sur l'écran 7 (05) :
-   - **passer la conservation à « illimitée »** (choix proposé par défaut, puisque D24 demande de tout garder) ;
+   - **passer la conservation à « illimitée »** (choix par défaut, puisque D24 demande de tout garder ; H1) ;
    - ou l'**allonger** jusqu'à couvrir l'historique importé ;
    - ou **garder son réglage**. Les points trop anciens ne sont alors **pas importés**, plutôt qu'importés puis purgés : on évite une écriture inutile.
 3. C'est une **modification d'un réglage existant** : l'ancienne valeur est enregistrée dans le journal et **restaurée en cas d'annulation** (A9).
@@ -52,7 +52,7 @@ On obtient une série continue, sans recouvrement : un point par heure pour le p
 
 | `state_class` HA | Valeur importée par heure | Remarque |
 |---|---|---|
-| `measurement` | `mean` | Les `min` et `max` sont perdus : Gladys n'a qu'une valeur par point. Voir § 7, Q07-2. |
+| `measurement` | `mean` | Les `min` et `max` ne sont pas repris : Gladys n'a qu'une valeur par point, et la moyenne suffit (H3). |
 | `measurement_angle` | `mean` (moyenne circulaire calculée par HA) | Direction du vent, par exemple |
 | `total`, `total_increasing` | `state` (index brut du compteur), voir § 3.3 | |
 | Sans `state_class` | Pas de statistiques : seuls les états bruts (10 jours) | Typiquement les binaires, interrupteurs, ouvertures |
@@ -97,7 +97,7 @@ Côté Gladys, une fonction d'index alimente, par le service `energy-monitoring`
 - `saveMultipleHistoricalStates` appelle `saveHistoricalState` avec le **dernier** point du lot. Celui-ci ne met à jour la valeur courante de la fonction (`last_value`) **que s'il est plus récent** que la valeur actuelle. L'import d'un passé ancien n'écrase donc pas la valeur en direct (`server/lib/device/device.saveHistoricalState.js`).
 - Les lots sont triés par date. On les envoie **du plus ancien au plus récent**, par fonction.
 
-**Taille des lots et rythme** : par exemple 10 000 points par lot, avec une courte pause entre deux lots pour ne pas monopoliser DuckDB, que Gladys utilise en continu. *À calibrer par mesure (Q07-1).*
+**Taille des lots et rythme** : par exemple 10 000 points par lot, avec une courte pause entre deux lots pour ne pas monopoliser DuckDB, que Gladys utilise en continu. **L'instance doit rester accessible en permanence pendant l'import.** Le rythme suit donc les pratiques du cœur pour ses propres calculs, imports et purges, que Pierre-Gilles réajuste régulièrement. Les paramètres (taille de lot, pause) sont des constantes du service, faciles à revoir. *À calibrer par mesure (Q07-1).*
 
 ## 5. Estimation du volume et de la durée (D24)
 
@@ -117,10 +117,16 @@ Le résultat est présenté **par appareil**, trié du plus volumineux au plus l
 - **Resynchronisation** (D13) : seule la période postérieure au curseur est importée.
 - **Annulation** (A9) : on supprime exactement la plage importée, fonction par fonction, d'après le curseur. Puis on relance le recalcul des fonctions dérivées d'énergie, et on restaure la durée de conservation d'origine (§ 1).
 
-## 7. Questions ouvertes
+## 7. Décisions
+
+| # | Décision |
+|---|---|
+| H1 | Purge de Gladys : avant l'import, l'outil propose de passer la conservation de l'historique à **« illimitée »**, choix par défaut. L'utilisateur l'ajustera ensuite selon ses besoins. La valeur d'origine est restaurée en cas d'annulation (§ 1, ex-Q07-3). |
+| H2 | Compteurs d'énergie : import de l'index réel, puis recalcul des consommations et des coûts par Gladys (§ 3.3). |
+| H3 | Mesures : seule la **moyenne horaire** est importée, sans le minimum ni le maximum (ex-Q07-2). |
+
+## 8. Questions ouvertes
 
 | # | Question |
 |---|---|
-| Q07-1 | **Mesures sur une instance réelle** : coût par point dans DuckDB, débit d'insertion, taille des lots, comportement de la consommation à 30 minutes calculée à partir d'un index horaire. À faire avec les sauvegardes réelles attendues (Q02-3). |
-| Q07-2 | **Minimum et maximum horaires** : HA les conserve pour les mesures, Gladys n'a qu'une valeur par point. Importer seulement la moyenne (proposé) suffit-il ? Ou faut-il, par exemple, trois points par heure (min, moyenne, max) au risque de fausser les moyennes calculées par Gladys ? |
-| Q07-3 | **Mise en garde** : passer la conservation à « illimitée » vaut pour **tous** les appareils de Gladys, pas seulement ceux importés. Est-ce acceptable comme choix par défaut, ou faut-il plutôt proposer une durée calculée (par exemple l'âge de l'historique HA plus un an) ? |
+| Q07-1 | **Mesures sur une instance réelle** : coût par point dans DuckDB, débit d'insertion, taille des lots et pause compatibles avec une instance qui doit rester réactive, comportement de la consommation à 30 minutes calculée à partir d'un index horaire. *Laissée ouverte. À traiter avec Pierre-Gilles et les sauvegardes réelles (Q02-3).* |
