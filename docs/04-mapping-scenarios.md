@@ -23,11 +23,11 @@ Trois constats obligent à préciser D5 (« fidélité à 100 %, sinon à refair
    - un `time_pattern` `/n` ne peut pas être aligné sur l'horloge ;
    - un déclencheur MQTT avec joker ne se déclenche jamais dans Gladys.
 
-## 2. Doctrine de conversion (proposition)
+## 2. Doctrine de conversion (S1)
 
-### 2.1 Fidélité au comportement nominal, écarts transversaux affichés
+### 2.1 Un fonctionnement similaire, écarts affichés
 
-**On convertit une automatisation si son comportement est identique dans HA et dans Gladys en fonctionnement normal**, c'est-à-dire appareils joignables et commandes acceptées. Les écarts qui ne jouent qu'en cas de panne sont **acceptés et affichés** :
+**Objectif : un fonctionnement similaire, pas identique.** Gladys n'est pas HA, et des différences sont admises. Le seuil reste exigeant. **On convertit une automatisation si son comportement est le même dans HA et dans Gladys en fonctionnement normal**, c'est-à-dire appareils joignables et commandes acceptées. Les écarts qui ne jouent qu'en cas de panne sont **acceptés et affichés** :
 
 | Écart | Traitement |
 |---|---|
@@ -125,7 +125,7 @@ L'**inventaire** (01 § 4) doit aussi porter, pour chaque automatisation :
 - les scripts et scènes HA appelés ;
 - la **configuration HA** (fuseau horaire, coordonnées, unités). Si elle diffère de celle de Gladys, les déclencheurs horaires et solaires et les seuils concernés sont refusés.
 
-## 5. Réécritures de motifs (proposition, avec accord explicite)
+## 5. Réécritures de motifs (S2)
 
 Certains motifs très courants sont impossibles **élément par élément**, mais leur **comportement observable** est reproductible autrement. Le cas typique est la lumière sur détection de mouvement :
 
@@ -144,7 +144,7 @@ actions:
 
 Il devient **deux scènes Gladys** :
 1. mouvement = 1 → allumer ;
-2. mouvement = 0 **pendant 120 s** → éteindre.
+2. mouvement = 0 → éteindre, avec l'option de déclencheur **« Exécuter la scène après que la condition a été valide pendant : 2 minutes »** (`for_duration`, avec `threshold_only`).
 
 La minuterie de Gladys est annulée par un retour du mouvement, exactement comme le `restart` de HA.
 
@@ -200,11 +200,16 @@ En complément de 06 :
 - **chaque refus** a un test qui vérifie la raison et le chemin de l'élément ;
 - les **réécritures** ont des tests de **comportement** : séquences d'événements simulées et vérification des commandes émises, comparées au comportement HA attendu.
 
-## 10. Questions ouvertes
+## 10. Décisions
+
+| # | Décision |
+|---|---|
+| S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
+| S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S3 | Les pistes d'évolution du cœur (§ 6) sont suivies dans le **fil du forum** du projet. Le bogue P3 (déclencheur MQTT avec joker) fait l'objet d'un **ticket** sur `GladysAssistant/Gladys` (ex-Q04-4). |
+
+## 11. Questions ouvertes
 
 | # | Question |
 |---|---|
-| Q04-1 | **Doctrine (§ 2.1)** : acceptez-vous de convertir sur la base du **comportement nominal**, en **affichant** les écarts E1 (indisponibilité), E2 (erreur d'action) et E4 (heures solaires) ? Sans cela, presque aucune automatisation ne serait convertible. |
-| Q04-2 | **Réécritures (§ 5)** : bibliothèque fermée de motifs, proposés avec un statut distinct et acceptés scène par scène. D'accord sur le principe ? |
-| Q04-3 | **Scènes HA** (`scene.turn_on`) : on les traduit en actions **à l'intérieur** de la scène qui les appelle (proposé). Faut-il aussi migrer les scènes HA **pour elles-mêmes**, en scènes Gladys sans déclencheur lancées à la main ? |
-| Q04-4 | **Pistes P1 à P6 (§ 6)** : les ajouter au fil du forum, ou en faire un message séparé ? P3 ressemble à un bogue : faut-il ouvrir un ticket sur le dépôt Gladys ? |
+| Q04-3 | **Scènes HA** : les migrer aussi **pour elles-mêmes** (scène Gladys sans déclencheur, lancée à la main), en plus de leur traduction dans les automatisations qui les appellent ? |
