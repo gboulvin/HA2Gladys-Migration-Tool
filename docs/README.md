@@ -8,7 +8,7 @@
 | 03 | `03-mapping-devices.md` | Correspondances intégrations HA → services Gladys | ⏳ À rédiger |
 | 04 | `04-mapping-scenarios.md` | Automatisations HA → scènes Gladys | ⏳ À rédiger |
 | 05 | `05-ux.md` | Parcours utilisateur, écrans, rapport de migration | ⏳ À rédiger |
-| 06 | `06-tests.md` | Stratégie de test, jeux de données | ⏳ À rédiger |
+| 06 | [Tests](06-tests.md) | Stratégie de test, jeux de données | 📝 Brouillon |
 | 07 | `07-historiques.md` | Import des historiques de données HA | ⏳ À rédiger |
 | — | [`decisions/`](decisions/README.md) | Décisions d'architecture (ADR) | — |
 | — | [`research/gladys-codebase.md`](research/gladys-codebase.md) | Note de recherche : étude du code Gladys (commit `71edb17`) | 📚 Référence |
