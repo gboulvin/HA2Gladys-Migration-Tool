@@ -59,6 +59,20 @@ J'ai cherché à **toucher le cœur le moins possible**. Les bibliothèques néc
 
 Un point d'attention aussi : la purge quotidienne des états (90 jours par défaut) effacerait l'historique importé. L'outil proposera donc de passer la conservation à « illimitée », réglage que l'utilisateur pourra modifier ensuite. Cela ne demande aucune modification du cœur, mais je préfère que ce soit dit.
 
+## Pistes d'évolution du cœur (pour la V2 et au-delà)
+
+En étudiant le moteur de scènes pour la conversion des automatisations HA, j'ai relevé des manques. Les combler augmenterait directement ce que l'outil pourra convertir. **Ils ne sont pas nécessaires à la V1** : ce sont des propositions à discuter.
+
+| # | Piste | Intérêt |
+|---|---|---|
+| P1 | **Modes d'exécution** des scènes (« ignorer si déjà en cours », « redémarrer », « mettre en file ») | Aujourd'hui, toutes les exécutions d'une scène tournent en parallèle. Une scène avec une attente peut donc se lancer plusieurs fois en même temps. C'est le gain le plus important. |
+| P2 | Action **« arrêter une scène »** | Motifs à minuterie |
+| P3 | Condition **solaire** (il fait jour ou nuit, avant ou après le coucher) | Éclairage, volets |
+| P4 | Condition de **durée** (« dans cet état depuis N minutes ») | Alertes |
+| P5 | **Déclencheur à l'origine** de la scène utilisable dans les conditions | Scènes à plusieurs déclencheurs et plusieurs comportements |
+
+Au passage, j'ai trouvé un **bogue** : un déclencheur « message MQTT reçu » dont le topic contient un joker (`+` ou `#`) ne se déclenche jamais. Le ticket est ouvert ici : *(lien du ticket)*.
+
 ## Ce que je demande aux développeurs d'intégrations
 
 Pas grand-chose, et seulement à la prochaine mise à jour du SDK :
