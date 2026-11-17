@@ -10,6 +10,7 @@
 | 05 | `05-ux.md` | Parcours utilisateur, écrans, rapport de migration | ⏳ À rédiger |
 | 06 | `06-tests.md` | Stratégie de test, jeux de données | ⏳ À rédiger |
 | — | [`decisions/`](decisions/README.md) | Décisions d'architecture (ADR) | — |
+| — | [`research/gladys-codebase.md`](research/gladys-codebase.md) | Note de recherche : étude du code Gladys (commit `71edb17`) | 📚 Référence |
 
 ## Légende des statuts
 
