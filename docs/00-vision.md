@@ -14,7 +14,7 @@ Home Assistant (HA) est la plateforme domotique open source la plus répandue. G
 Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit permettre à un utilisateur :
 
 1. d'**analyser** son installation HA et de savoir précisément ce qui peut être migré ;
-2. de **migrer ses appareils** (et leur organisation par pièce) vers les intégrations Gladys adéquates ;
+2. de **migrer ses appareils** (avec leur organisation par pièce et leur historique), ses **personnes** et ses **services** vers les intégrations Gladys adéquates ;
 3. de **migrer ses scénarios** (automatisations HA) vers des scènes Gladys, lorsque la conversion est fidèle ;
 4. de savoir **quoi faire pour le reste** : intégration alternative, demande à la communauté, ou action manuelle.
 
@@ -32,13 +32,13 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 
 | Lot | Contenu | Priorité |
 |---|---|---|
-| **Lot 1 — Appareils** | Appareils et entités HA, pièces (*areas*), personnes HA vers utilisateurs Gladys, rattachement aux services Gladys | V1 |
+| **Lot 1 — Appareils** | Appareils et entités HA, pièces (*areas*), personnes HA vers utilisateurs Gladys, intégrations de type « service » (météo, calendriers, notifications…), rattachement aux intégrations Gladys | V1 |
+| **Lot 1 bis — Historiques** | Historique des valeurs des appareils migrés (voir § 9 ter) | V1 |
 | **Lot 2 — Scénarios** | Automatisations HA (déclencheurs, conditions, actions) converties en scènes Gladys | V2 |
 | **Transverse** | Rapport de compatibilité, suggestions d'intégrations alternatives, canevas de message pour le forum, rapport final | V1 |
 
 ### 4.2 Hors périmètre (pour l'instant)
 
-- Historique des états et statistiques (énergie, graphiques).
 - Tableaux de bord (*dashboards* Lovelace).
 - Modules complémentaires (*add-ons*) et leur configuration.
 - Scripts HA appelés de façon autonome (à réévaluer au lot 2 : un script appelé par une automatisation pourrait être « déplié » dans la scène).
@@ -112,6 +112,9 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D17 | La spec de travail reste **en français** dans ce dépôt. Une **version anglaise** est livrée dans `docs/specs/` avec la pull request vers Gladys. | Cadrage du 2026-11-17 (ex-Q12) |
 | D18 | Les **modifications du cœur** de Gladys (téléversement de sauvegarde, etc.) sont expliquées et argumentées dans un **fil dédié du forum Gladys**, ouvert par le porteur du projet. Pierre-Gilles valide l'ensemble des pull requests. | Cadrage du 2026-11-17 (ex-Q13) |
 | D19 | Le catalogue V1 couvre en priorité les **10 intégrations HA les plus utilisées** d'après le [tracker communautaire](https://william-de71.github.io/gladys-integrations-tracker/) : Met.no, Google Cast, Bluetooth, MQTT, Matter, UPnP/IGD, Tuya, IPP, DLNA et ESPHome. Toutes ont un équivalent Gladys, natif ou dans le store. Détail et limites de la source : [`research/ha-integrations-usage.md`](research/ha-integrations-usage.md). | Cadrage du 2026-11-17 (ex-Q11) |
+| D20 | Les 10 premières intégrations sont un **point de départ, pas une limite**. Le catalogue V1 y ajoute **Zigbee (ZHA et Zigbee2MQTT) et Shelly**. L'objectif à terme est de couvrir le maximum d'appareils, idéalement **tous**. Les intégrations de type **service**, sans appareil physique (météo, calendrier, notifications…), sont migrées elles aussi. | Cadrage du 2026-11-17 (ex-Q14) |
+| D21 | Le catalogue distant (D12) s'appuie sur le **tracker communautaire** de William-De71, développeur Gladys très actif qui avait été pressenti pour cet outil. Le format sera enrichi avec lui. | Cadrage du 2026-11-17 (ex-Q15) |
+| D22 | Les **historiques de données** des appareils migrés font partie de la **V1**. Voir § 9 ter. | Cadrage du 2026-11-17 |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -166,6 +169,30 @@ L'utilisateur doit savoir où se trouvent ses secrets et ce qu'ils deviennent. C
 
 > ⚠️ Contrairement à ce qu'on pourrait supposer, ni HA ni Gladys ne chiffrent les identifiants qu'ils stockent localement. La protection repose sur l'accès à la machine. L'outil ne doit **pas créer de nouvelle copie** de ces secrets : pas de journaux, pas de fichiers temporaires laissés sur disque, rapport exporté expurgé.
 
+## 9 ter. Historiques de données
+
+Ce qui suit sur Gladys a été vérifié dans le code. Ce qui concerne HA vient de sa documentation et sera vérifié dans `02-extraction-ha.md`.
+
+**Côté Gladys (vérifié)**
+- L'historique est stocké dans DuckDB (`t_device_feature_state`).
+- Le cœur sait déjà **insérer en masse des valeurs datées** (`device.saveMultipleHistoricalStates`) et **remplacer atomiquement l'historique à partir d'une date** (`device.replaceHistoricalStatesFrom`). Ce second mécanisme permet de relancer un import sans doublons (D13).
+- Seules les **valeurs numériques** sont historisées. Les états textuels (par exemple « en lecture ») ne le sont pas.
+
+**Côté HA (à vérifier)**
+- HA garde deux niveaux d'historique dans son *recorder* :
+  - les **états bruts**, conservés **10 jours** par défaut ;
+  - les **statistiques long terme**, des agrégats horaires (moyenne, minimum et maximum, ou cumul pour les compteurs d'énergie) **conservés indéfiniment**, mais uniquement pour les capteurs qui déclarent une `state_class`.
+- La base est en SQLite par défaut, mais peut être en MariaDB ou PostgreSQL. Dans ce cas, elle **n'est pas dans la sauvegarde**, et seule l'API permet d'y accéder.
+- L'utilisateur peut aussi exclure la base de données de ses sauvegardes.
+
+**Principes retenus**
+1. On n'importe l'historique que pour les fonctions d'appareils **effectivement migrées**.
+2. L'import se fait en **tâche de fond avec progression** (`gladys.job`) et par lots, car le volume peut atteindre plusieurs millions de points.
+3. Les **compteurs d'énergie** demandent une conversion à part : index cumulé ou consommation par période. Elle sera traitée avec les correspondances de fonctions (section 03).
+4. Une relance n'importe que ce qui manque (D13).
+
+Ce sujet a sa propre section de spec : `07-historiques.md`.
+
 ## 10. Critères de réussite
 
 - Un utilisateur dont l'installation ne contient que des intégrations prises en charge peut migrer **tous ses appareils et leurs pièces en moins de 15 minutes**, sans saisie manuelle hormis la configuration des services Gladys requis.
@@ -177,9 +204,9 @@ L'utilisateur doit savoir où se trouvent ses secrets et ce qu'ils deviennent. C
 
 | # | Question | Section concernée |
 |---|---|---|
-| — | *Q1 à Q13 sont tranchées : voir D7 à D19.* | — |
-| Q14 | Ajouter au catalogue V1 **Zigbee (11ᵉ, 26 %) et Shelly (12ᵉ, 24,9 %)**, presque à égalité avec le 10ᵉ ? Zigbee est le premier protocole radio domotique, et son rapprochement par adresse IEEE est le plus simple à fiabiliser. | 03 |
-| Q15 | S'appuyer sur le **tracker communautaire** comme base du catalogue distant (D12), en accord avec son auteur, quitte à enrichir son format ? | 01, 03 |
+| — | *Q1 à Q15 sont tranchées : voir D7 à D21.* | — |
+| Q16 | Historiques : importer les **états bruts** (quelques jours seulement dans HA par défaut), les **statistiques long terme** (agrégats horaires conservés indéfiniment), ou les deux ? | 07 |
+| Q17 | Historiques : quelle **profondeur maximale** proposer par défaut (tout, 1 an, 2 ans…), compte tenu du volume et de la durée de l'import ? | 07 |
 
 ## 12. Glossaire
 
