@@ -89,7 +89,7 @@ Comme les autres écrans de Gladys, les réponses du serveur sont simulées avec
 
 ## 6. Bout en bout réel (hors CI de Gladys)
 
-La CI de Gladys ne peut pas faire tourner un vrai Home Assistant à chaque pull request. Mais l'outil dépend d'un logiciel tiers qui change tous les mois (D9). D'où une **CI propre au projet**, dans ce dépôt ou dans un dépôt d'outillage :
+La CI de Gladys ne peut pas faire tourner un vrai Home Assistant à chaque pull request. Mais l'outil dépend d'un logiciel tiers qui change tous les mois (D9). D'où une **CI de veille**, développée dans ce dépôt puis **reprise par l'organisation `GladysAssistant`** une fois le projet mergé (T1) :
 
 | Tâche | Fréquence | Contenu |
 |---|---|---|
@@ -124,13 +124,13 @@ La V1 est prête à être proposée à Gladys quand :
 1. la CI de Gladys est verte : tests serveur, couverture du *patch* à 100 %, Cypress, lint, traductions, construction ;
 2. le **test d'annulation** (§ 4, scénario 4) passe ;
 3. la **veille des formats** (§ 6) passe sur la dernière version de HA ;
-4. au moins **trois installations réelles anonymisées** de la communauté ont été migrées de bout en bout, en coexistence, puis annulées sans écart ;
+4. une **image Docker de test** de Gladys, avec le service, a été proposée à la communauté sur le forum (T2), et au moins **trois installations réelles** ont été migrées de bout en bout, en coexistence, puis annulées sans écart ;
 5. les critères de réussite de la vision (§ 10) sont mesurés sur ces installations : durée, aucun doublon à la relance, statut et raison pour chaque élément non migré ;
 6. la spec anglaise est prête dans `docs/specs/` (D17).
 
-## 10. Questions ouvertes
+## 10. Décisions
 
-| # | Question |
+| # | Décision |
 |---|---|
-| Q06-1 | **Où héberger la CI de veille** (§ 6) : dans ce dépôt (simple, sous notre contrôle) ou dans un dépôt de l'organisation `GladysAssistant` (plus durable si le projet change de mains) ? |
-| Q06-2 | **Bêta testeurs** : faut-il prévoir une phase de bêta publique (image Docker de Gladys avec le service, annoncée sur le forum) avant la pull request finale, pour le critère n° 4 ? |
+| T1 | Tout le travail (service, CI de veille, outillage de test, jeux de données publics) a vocation à être **rendu à l'organisation `GladysAssistant`** une fois mergé. Ce dépôt est un lieu de travail, pas une destination. La CI de veille y est développée, puis transférée (ex-Q06-1). |
+| T2 | Une **image Docker de test** de Gladys avec le service est publiée et annoncée sur le forum **avant** la pull request finale, pour les essais de la communauté (ex-Q06-2). |
