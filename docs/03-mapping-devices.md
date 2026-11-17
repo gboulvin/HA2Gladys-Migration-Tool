@@ -44,6 +44,43 @@ Ajouter ces règles au manifeste `gladys-assistant-integration.json` serait plus
 3. Il fusionne le niveau 1, le niveau 2 et le fichier central des services natifs dans `migration-catalog.json`.
 4. Il affiche sur sa page une colonne **« Migration HA »** : règles présentes ou non, confiance. Les auteurs d'intégrations voient ainsi ce qui manque. *Cela donne au tracker la seconde vie évoquée : une fois toutes les intégrations créées, il reste l'outil qui mesure la couverture de la migration.*
 
+### 2.4 Révision : l'identité matérielle publiée par les intégrations (M1, proposition)
+
+**Question posée en relecture** : un scan des dépôts des intégrations externes, à la recherche des catégories d'appareils qu'elles créent, ne suffirait-il pas ?
+
+**Réponse : pour les fonctions, on n'a même pas besoin de scanner. Pour l'identité des appareils, un scan ne suffit pas.**
+- **Les fonctions** : au moment de la migration, l'outil voit directement les appareils **découverts** par l'intégration installée, avec leurs fonctions (catégorie, type, unité). C'est plus fiable qu'un scan de code, car c'est la réalité de l'instance. Le repli générique « triplet unique » (§ 3.4) s'appuie là-dessus.
+- **L'identité** : ce qui manque, c'est de savoir **quelle donnée de l'appareil découvert est sa MAC, son adresse IEEE ou son numéro de série**. C'est enfoui dans la logique de chaque intégration (chez Shelly, la MAC est la fin du param `SHELLY_ID`), et aucun scan ne peut le déduire de façon fiable.
+
+**Proposition : convention plutôt que configuration.** Les intégrations publient l'identité matérielle de leurs appareils dans des **params réservés et standard**, au moment de la découverte :
+
+| Param réservé | Contenu | Clé HA correspondante |
+|---|---|---|
+| `GLADYS_HW_MAC` | MAC normalisée, 12 caractères hexadécimaux en minuscules | connexion `mac` |
+| `GLADYS_HW_IEEE` | IEEE normalisée, 16 caractères hexadécimaux en minuscules | connexion `zigbee` |
+| `GLADYS_HW_SERIAL` | Numéro de série constructeur | `serial_number`, identifiant Matter `serial_…` |
+| `GLADYS_HW_UDN` | UDN UPnP sans le préfixe `uuid:` | connexion `upnp` |
+| `GLADYS_HW_VENDOR_ID` | Identifiant propre au fabricant ou à son cloud (id Tuya, UUID Cast…) | `identifiers` du domaine de l'intégration, déclaré au niveau 1 |
+
+Ce que cela apporte :
+- **Le rapprochement devient générique.** Une seule règle dans l'outil (connexion HA ↔ param `GLADYS_HW_*`) remplace les règles par intégration du § 3.3, pour la grande majorité des cas.
+- **Le fichier `gladys-migration.json` devient facultatif.** Il ne sert plus qu'aux **exceptions** (fonctions aux noms divergents, conversions d'unités) et au **préremplissage** de la configuration.
+- **Le bénéfice dépasse la migration.** Gladys pourrait aussi repérer un même appareil vu par deux intégrations, ou proposer `device.migrate` (migration d'un appareil vers une autre intégration) automatiquement.
+
+**Précédent dans Gladys** : des params réservés `GLADYS_*` existent déjà, avec une sémantique définie par le cœur (`GLADYS_TRANSPORT`, `docs/specs/external-integrations/contracts/host-api-endpoints.md`). **Contrainte** : un cœur ancien répond `400` à tout `GLADYS_*` inconnu, ce qui ferait échouer **toute** la publication des découvertes. Il faut donc :
+1. une **modification du cœur** (liste des params réservés), à défendre sur le forum (D18) ;
+2. que **le SDK** n'émette ces params que si la version de Gladys les accepte. Le SDK la connaît (`GLADYS_VERSION`).
+
+**SDK ou modèle ?** Les deux, avec des rôles distincts :
+- **le SDK** fournit l'aide (`hardwareIds({ mac, ieee, serial })`) qui normalise les valeurs et gère la compatibilité de version. La normalisation n'est donc jamais réécrite à la main, ce qu'un modèle seul ne garantit pas ;
+- **le modèle** `integration-template-js` montre son usage dans l'exemple de découverte, et contient un `gladys-migration.json` d'exemple pour les exceptions.
+
+Comme vous le soulignez, chaque nouvelle version du SDK oblige les intégrations à se mettre à jour : c'est le bon moment pour adopter la convention. Le **tracker** peut mesurer l'adoption automatiquement (« publie l'identité matérielle : oui ou non ») et l'afficher. **Les services natifs** (zigbee2mqtt, mqtt, matter) sont dans le cœur : l'outil connaît directement leurs params (`IEEE_ADDRESS`, `SERIAL_NUMBER`…), sans convention à adopter.
+
+**Transition** : tant qu'une intégration n'a pas adopté la convention, les règles déclaratives du § 3.3 dans `gladys-migration.json` servent de solution d'appoint. Les deux mécanismes coexistent, et la convention l'emporte quand elle est présente.
+
+*Point à discuter avec William et Pierre-Gilles avant de figer (Q03-1 bis).*
+
 ## 3. Format du catalogue
 
 ### 3.1 Niveau 1 : table des intégrations
@@ -218,7 +255,7 @@ Synthèse de K § 1 :
 | Personne sans utilisateur HA | `role: habitant` | |
 | — | **`email`, `password` (8 caractères minimum), `birthdate`, `language`** | **Obligatoires dans Gladys et absents de HA** : à saisir pour chaque personne retenue |
 | Photo | `picture` | Si présente dans la sauvegarde, après accord |
-| `device_trackers` | — | Présence : hors V1 (Q03-2) |
+| `device_trackers` | — | Présence : **V2** (M2) |
 
 - Les mots de passe HA ne sont **jamais** repris : ils sont hachés, et l'outil ne lit pas ces fichiers (02 § 4.2).
 - La personne qui fait la migration est déjà un utilisateur Gladys (administrateur). L'outil propose de la **rapprocher** de sa personne HA plutôt que d'en créer une deuxième.
@@ -250,10 +287,26 @@ Correspondance avec la vision (§ 8) :
 | Entité désactivée, masquée, de diagnostic ; règle `exclude` | ⏭️ Ignoré |
 | Domaine HA absent du catalogue | ❌ Non migrable, et l'outil propose de signaler le manque au tracker |
 
-## 9. Questions ouvertes
+## 9. Parcours de réappairage (M3)
+
+Pour ZHA → Zigbee2MQTT et pour Matter, il faut appairer de nouveau les appareils dans Gladys. Valider chaque appareil un par un serait trop long. Le parcours repose donc sur le **rapprochement automatique au fil de l'eau** :
+
+1. L'outil ouvre l'appairage dans Gladys (*permit join* pour Zigbee2MQTT, saisie des codes pour Matter) et affiche la **liste à cocher** des appareils HA à réappairer, avec leur nom et leur pièce.
+2. L'utilisateur appaire les appareils **dans l'ordre qu'il veut**, sans revenir à l'écran entre deux.
+3. À chaque nouvel appareil découvert, l'outil le rapproche **automatiquement** par sa clé matérielle : adresse IEEE pour Zigbee (elle ne change pas d'un logiciel à l'autre), numéro de série pour Matter. Il applique le nom et la pièce de HA, et coche la ligne.
+4. **Aucune validation par appareil** quand le rapprochement est sûr. Seuls les cas ambigus (Matter sans numéro de série, plusieurs candidats) sont mis de côté. Ils sont présentés **ensemble, à la fin**, en un seul écran.
+5. L'utilisateur peut s'arrêter à tout moment : la progression est conservée (01 § 5) et la liste reprend là où elle en était.
+
+## 10. Décisions
+
+| # | Décision |
+|---|---|
+| M1 | `gladys-migration.json` est retenu comme nom du fichier de niveau 2. **Toutes** les intégrations sont appelées à adopter la migration, au moment des mises à jour imposées par les nouvelles versions du SDK. Proposition associée : identité matérielle publiée dans des params réservés `GLADYS_HW_*`, via le SDK et illustrée par le modèle (§ 2.4), ce qui rend le fichier facultatif. *À discuter avec William et Pierre-Gilles avant de figer (ex-Q03-1).* |
+| M2 | Présence (`device_trackers`) en **V2**. Les **utilisateurs** restent en **V1** (ex-Q03-2). |
+| M3 | Réappairage (ZHA, Matter) avec **rapprochement automatique au fil de l'eau** et validation groupée des seuls cas ambigus (§ 9, ex-Q03-3). |
+
+## 11. Questions ouvertes
 
 | # | Question |
 |---|---|
-| Q03-1 | **Nom et hébergement du fichier de niveau 2** : `gladys-migration.json` à la racine du dépôt de l'intégration convient-il à William et aux auteurs d'intégrations ? Faut-il l'ajouter au modèle `integration-template-js` (fichier vide d'exemple), pour que chaque nouvelle intégration y pense dès sa création ? |
-| Q03-2 | **Présence** : les `device_trackers` des personnes HA (application mobile, routeur…) n'ont pas d'équivalent direct. On les laisse hors V1 ? |
-| Q03-3 | **ZHA → Zigbee2MQTT** : le changement de pile impose un réappairage. Faut-il un parcours guidé dans l'outil (appareil par appareil, le rapprochement se faisant après chaque appairage par l'adresse IEEE, qui ne change pas) ? Cela vaudrait aussi pour Matter. |
+| Q03-1 bis | Valider avec William et Pierre-Gilles la convention `GLADYS_HW_*` : noms des params, modification du cœur, aide du SDK, calendrier d'adoption par les intégrations existantes. |
