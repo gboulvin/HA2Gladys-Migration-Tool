@@ -13,6 +13,7 @@
 | — | [`decisions/`](decisions/README.md) | Décisions d'architecture (ADR) | — |
 | — | [`research/gladys-codebase.md`](research/gladys-codebase.md) | Note de recherche : étude du code Gladys (commit `71edb17`) | 📚 Référence |
 | — | [`research/ha-integrations-usage.md`](research/ha-integrations-usage.md) | Note de recherche : intégrations HA les plus utilisées | 📚 Référence |
+| — | [`research/ha-data-sources.md`](research/ha-data-sources.md) | Note de recherche : sources de données HA (API, sauvegardes, recorder) | 📚 Référence |
 
 ## Légende des statuts
 
