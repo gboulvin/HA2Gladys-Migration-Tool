@@ -83,6 +83,8 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 | D4 | **Deux modes** sont proposés au choix : **coexistence** (HA continue de tourner) et **bascule** (HA est abandonné). | Cadrage du 2026-11-17 |
 | D5 | Les scénarios non convertibles fidèlement sont signalés **« à refaire manuellement »**. Aucune traduction approchée n'est faite. | Cadrage du 2026-11-17 |
 | D6 | Spécifications en **français**. Code, commentaires et commits en **anglais**. | Cadrage du 2026-11-17 |
+| D7 | **Contribution officielle** au dépôt `GladysAssistant/Gladys`, à l'initiative de son fondateur (Pierre-Gilles). On suit donc les conventions, l'outillage et le processus de revue du projet Gladys. | Cadrage du 2026-11-17 (ex-Q1) |
+| D8 | Intégrations HA prioritaires dans le catalogue V1 : **Zigbee2MQTT, MQTT, Z-Wave, Philips Hue, Tasmota, Shelly, Matter**. | Cadrage du 2026-11-17 (ex-Q6) |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -135,12 +137,11 @@ L'outil doit détecter ces situations et les expliquer. Le détail sera traité 
 
 | # | Question | Section concernée |
 |---|---|---|
-| Q1 | Contribution officielle au dépôt `GladysAssistant/Gladys` (à discuter avec les mainteneurs), ou service maintenu à part ? Cela détermine les conventions de code, le processus de revue et la distribution. | 01 |
+| — | *Q1 et Q6 sont tranchées : voir D7 et D8.* | — |
 | Q2 | Quelles versions minimales de Gladys et de HA supporter ? | 01, 02 |
 | Q3 | Sauvegardes HA chiffrées (les sauvegardes récentes peuvent l'être) : demande-t-on la clé à l'utilisateur ? Quel est le comportement exact selon les versions ? *À vérifier.* | 02 |
 | Q4 | Faut-il migrer les **étages** (*floors*) et les **étiquettes** (*labels*) de HA, alors que Gladys organise maisons et pièces différemment ? | 03 |
 | Q5 | Faut-il migrer les **personnes** HA vers les utilisateurs Gladys (utile pour les scénarios de présence) ? | 03, 04 |
-| Q6 | Quelles intégrations HA prioriser dans le catalogue de correspondances pour la V1 ? Proposition : Zigbee2MQTT, MQTT, Z-Wave, Philips Hue, Tasmota, Shelly, Matter. À confronter aux intégrations HA les plus utilisées. | 03 |
 | Q7 | Où héberger le catalogue de correspondances (fichier JSON versionné dans le service, ou catalogue distant mis à jour indépendamment de Gladys) ? | 01, 03 |
 | Q8 | En mode coexistence, faut-il proposer une **resynchronisation** ultérieure (nouveaux appareils ajoutés dans HA) ? | 05 |
 | Q9 | Forum : copier-coller du canevas uniquement, ou lien pré-rempli vers le forum (si celui-ci le permet) ? | 05 |
