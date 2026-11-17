@@ -248,13 +248,22 @@ Pour les historiques et les scènes, il faut savoir quelle **entité HA** corres
 - **Sauvegarde téléversée** : une sauvegarde HA peut peser plusieurs gigaoctets lorsqu'elle contient la base du *recorder*. Elle ne tient donc pas en mémoire. Elle est écrite en **flux** dans un dossier de travail du service, puis **supprimée** dès que l'analyse et l'import des historiques n'en ont plus besoin, et purgée à chaque démarrage de Gladys. Cela nuance le principe 7 de la vision : la sauvegarde ne reste pas « en mémoire », mais elle ne survit jamais à la migration.
 - **Rapport exporté** : il est expurgé de tout identifiant ou secret.
 
-### 7.3 Modification du cœur pour le téléversement (D18)
+### 7.3 Obtenir le fichier de sauvegarde (D18)
 
-Le cœur limite le corps des requêtes JSON à 100 ko et n'accepte pas l'envoi de fichiers (`server/api/middlewares/jsonBodyMiddleware.js`). Proposition, à argumenter sur le forum :
+**Ce qu'on peut reprendre de la restauration Gladys Plus.** La restauration d'une sauvegarde Gladys Plus ne reçoit pas de fichier depuis le navigateur : c'est le **serveur Gladys qui télécharge** l'archive depuis Gladys Plus (`server/lib/gateway/gateway.downloadBackup.js`). Sa route (`post /api/v1/gateway/backup/restore`) ne peut donc pas servir de route de téléversement. En revanche, une bonne partie de sa mécanique est réutilisable telle quelle :
+- l'écriture **en flux sur disque**, dans un dossier de travail vidé avant chaque usage (`backupsFolder/restore`) ;
+- les **contrôles de sécurité des archives** : noms de fichiers sûrs et entrées tar sans traversée de chemin (`server/utils/backupSafety.js` : `assertSafeBackupName`, `isSafeArchiveEntry`) ;
+- l'appel aux binaires `tar` et `gzip` et la remontée de progression au front.
 
-- une route dédiée, réservée aux administrateurs, qui accepte un corps **brut en flux** (`application/octet-stream`) et l'écrit directement sur disque, sans le charger en mémoire ;
-- un précédent existe avec le corps brut audio de la reconnaissance vocale (`audioRawBodyMiddleware.js`), mais il est limité à 5 Mo et lu en mémoire. Il faut ici un **flux vers disque** ;
-- une taille maximale configurable, et un contrôle de l'espace disque **avant** l'écriture (`system.getDiskSpace`).
+**Trois façons d'obtenir la sauvegarde HA, par ordre de préférence :**
+
+| # | Voie | Modification du cœur | Quand |
+|---|---|---|---|
+| 1 | **Gladys télécharge la sauvegarde depuis HA**, par l'API, avec le jeton (même schéma que Gladys Plus : le serveur tire le fichier) | **Aucune** | HA est en marche. C'est le cas courant, et cela donne en plus les données des modules complémentaires (Zigbee2MQTT, § 9.3) et la base du *recorder* en un seul fichier. *Point d'API à confirmer en section 02.* |
+| 2 | **Téléversement depuis le navigateur** : route réservée aux administrateurs, corps brut en flux (`application/octet-stream`) écrit directement sur disque, taille maximale configurable, contrôle d'espace disque préalable (`system.getDiskSpace`) | **Oui** : nouvelle route et nouveau middleware (le précédent `audioRawBodyMiddleware.js` est limité à 5 Mo et lu en mémoire) | HA est arrêté ou hors d'usage, et l'utilisateur n'a que son fichier. |
+| 3 | **Dépôt manuel du fichier** dans un dossier surveillé par Gladys (volume Docker) | **Aucune** | Solution de secours pour les très gros fichiers, ou si la voie 2 n'est pas acceptée. Moins conviviale. |
+
+La voie 1 combinée à la voie 3 suffit à une première version **sans aucune modification du cœur** pour le téléversement. La voie 2 reste souhaitable pour le confort de l'utilisateur et sera défendue sur le forum.
 
 ## 8. Estimation du volume des historiques (D24)
 
@@ -332,7 +341,7 @@ Elles seront formalisées en ADR une fois cette section validée.
 | A4 | Règles de rapprochement déclarées dans le catalogue, et non codées par intégration (§ 6.2) |
 | A5 | Création d'appareil uniquement à partir du payload découvert (§ 6.3) |
 | A6 | Coffre éphémère des secrets, sauvegarde en fichier temporaire purgé (§ 7.2) |
-| A7 | Modifications du cœur requises : route de téléversement en flux (§ 7.3), dépendance YAML, déchiffrement des sauvegardes HA (§ 3.1). À présenter sur le forum (D18). |
+| A7 | Modifications du cœur : dépendance YAML et déchiffrement des sauvegardes HA (§ 3.1). La route de téléversement en flux (§ 7.3, voie 2) devient **souhaitable mais non bloquante**, car la sauvegarde peut être téléchargée depuis HA par Gladys (voie 1) ou déposée à la main (voie 3). À présenter sur le forum (D18). |
 | A8 | Nom du service : **`migration-home-assistant`**. Code séparé entre une partie générique et une partie propre à HA, tables `t_migration_*` avec colonne `source`, pour d'autres systèmes à venir (ex-QA1). |
 | A9 | **Garantie de retour à l'état initial** : l'annulation ne défait que ce que l'outil a fait, y compris la restauration des valeurs modifiées. L'outil ne remplace jamais une configuration existante (§ 5.4 et 5.5, ex-QA2). |
 | A10 | Points d'entrée : premier lancement (à côté de « Restaurer une sauvegarde »), **Paramètres → Migration**, carte dans le catalogue des intégrations (§ 9.1, ex-QA4). |
