@@ -341,7 +341,7 @@ Elles seront formalisées en ADR une fois cette section validée.
 | A4 | Règles de rapprochement déclarées dans le catalogue, et non codées par intégration (§ 6.2) |
 | A5 | Création d'appareil uniquement à partir du payload découvert (§ 6.3) |
 | A6 | Coffre éphémère des secrets, sauvegarde en fichier temporaire purgé (§ 7.2) |
-| A7 | Modifications du cœur : dépendance YAML et déchiffrement des sauvegardes HA (§ 3.1). La route de téléversement en flux (§ 7.3, voie 2) devient **souhaitable mais non bloquante**, car la sauvegarde peut être téléchargée depuis HA par Gladys (voie 1) ou déposée à la main (voie 3). À présenter sur le forum (D18). |
+| A7 | Les nouvelles dépendances (lecteur tar en flux, YAML, libsodium) sont **propres au service**, dans son `package.json`, comme `yaml` pour `zigbee2mqtt` : aucune dépendance ajoutée au cœur. Modifications du cœur restantes : tables `t_migration_*`, page de paramètres, params réservés `GLADYS_HW_*` (03 § 2.4) et, facultativement, la route de téléversement en flux (§ 7.3, voie 2). À présenter sur le forum (D18). |
 | A8 | Nom du service : **`migration-home-assistant`**. Code séparé entre une partie générique et une partie propre à HA, tables `t_migration_*` avec colonne `source`, pour d'autres systèmes à venir (ex-QA1). |
 | A9 | **Garantie de retour à l'état initial** : l'annulation ne défait que ce que l'outil a fait, y compris la restauration des valeurs modifiées. L'outil ne remplace jamais une configuration existante (§ 5.4 et 5.5, ex-QA2). |
 | A10 | Points d'entrée : premier lancement (à côté de « Restaurer une sauvegarde »), **Paramètres → Migration**, carte dans le catalogue des intégrations (§ 9.1, ex-QA4). |
