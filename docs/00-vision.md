@@ -72,6 +72,23 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 6. **Import** : création des pièces, des appareils puis, au lot 2, des scènes.
 7. **Rapport final** : bilan, liste des actions manuelles restantes et canevas de messages pour le forum. Le rapport est exportable.
 
+## 6 bis. Un seul outil, en plusieurs phases
+
+Les scènes ne peuvent être converties que si les appareils qu'elles utilisent existent déjà dans Gladys. Or, avec le modèle de rapprochement (D16), un appareil n'existe qu'une fois son intégration installée, configurée, et l'appareil découvert. Cela prend parfois du temps : appairage d'un pont, bouton à presser, découverte réseau…
+
+Plutôt que deux outils, on propose **un seul outil à phases, qui mémorise sa progression** :
+
+| Phase | Contenu | Peut être reprise plus tard |
+|---|---|---|
+| A. Analyse | Lecture de HA, classification, rapport de compatibilité | Oui (relance = nouvelle analyse, D13) |
+| B. Intégrations | Installation des intégrations externes cochées (store) et configuration des intégrations natives | Oui |
+| C. Appareils et personnes | Rapprochement avec les appareils découverts, création, nom, pièce ; création des utilisateurs | Oui, appareil par appareil |
+| D. Scènes | Conversion des automatisations dont **tous** les appareils sont migrés | Oui : une automatisation « bloquée par un appareil » devient convertible dès que l'appareil est migré |
+
+L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations découvrir les appareils, puis revenir. L'outil reprend là où il en était. Ce choix est cohérent avec D13 (relance à la demande).
+
+**Pourquoi un service du cœur, et non une intégration externe ?** L'orientation de Gladys est de sortir un maximum d'intégrations du cœur. Mais l'outil de migration doit installer des intégrations, créer des pièces, des utilisateurs et des scènes. Ce sont des actions d'administration qu'une intégration externe ne peut pas faire, puisqu'elle est isolée dans son conteneur. Il doit donc rester dans le cœur (D1). *À confirmer en section 01 en vérifiant le périmètre exact de l'API hôte.*
+
 ## 7. Décisions actées
 
 | # | Décision | Origine |
@@ -89,6 +106,11 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 | D11 | Les **personnes HA** sont migrées vers des **utilisateurs Gladys**, avec le même processus d'analyse, de sélection et de rapport que les appareils. | Cadrage du 2026-11-17 (ex-Q5) |
 | D12 | Le **catalogue de correspondances** est **distant**, collaboratif et alimenté de la façon la plus automatisée possible. Il est mis à jour indépendamment des versions de Gladys. | Cadrage du 2026-11-17 (ex-Q7) |
 | D13 | **Resynchronisation à la demande** : relancer l'outil détecte les nouveautés de HA (appareils, personnes, automatisations) et les propose à l'import. Il n'y a pas de synchronisation en direct. | Cadrage du 2026-11-17 (ex-Q8) |
+| D14 | Les **étages** HA ne sont pas migrés : Gladys n'a pas d'équivalent. Si l'installation HA compte plus d'un étage, l'outil **propose** de renommer les pièces en « Étage - Pièce ». Ce renommage est facultatif et modifiable, dans les limites de Gladys : nom de pièce unique et 40 caractères au maximum. Les **étiquettes** HA ne sont pas migrées non plus. | Cadrage du 2026-11-17 (ex-Q4) |
+| D15 | Pour un appareil non migrable, l'outil **encourage d'abord l'utilisateur à créer l'intégration manquante**, en mettant en avant la simplicité du modèle officiel (`GladysAssistant/integration-template-js`) et la publication sans validation dans le store. Il termine par : « Impossible pour vous ? Demandez à la communauté ! », avec un **lien vers le forum** et le canevas de message prérempli. | Cadrage du 2026-11-17 (ex-Q9) |
+| D16 | **Modèle de rapprochement** : l'outil ne fabrique pas d'appareils. L'intégration Gladys cible les découvre, et l'outil les rapproche des appareils HA par un identifiant matériel, puis leur applique nom et pièce. L'outil **installe lui-même les intégrations externes** nécessaires : liste de cases à cocher, puis validation, via l'API d'installation du store déjà présente dans le cœur. Voir § 6 bis. | Cadrage du 2026-11-17 (ex-Q10) |
+| D17 | La spec de travail reste **en français** dans ce dépôt. Une **version anglaise** est livrée dans `docs/specs/` avec la pull request vers Gladys. | Cadrage du 2026-11-17 (ex-Q12) |
+| D18 | Les **modifications du cœur** de Gladys (téléversement de sauvegarde, etc.) sont expliquées et argumentées dans un **fil dédié du forum Gladys**, ouvert par le porteur du projet. Pierre-Gilles valide l'ensemble des pull requests. | Cadrage du 2026-11-17 (ex-Q13) |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -154,13 +176,8 @@ L'utilisateur doit savoir où se trouvent ses secrets et ce qu'ils deviennent. C
 
 | # | Question | Section concernée |
 |---|---|---|
-| — | *Q1, Q2, Q3, Q5, Q6, Q7 et Q8 sont tranchées : voir D7 à D13.* | — |
-| Q4 | Faut-il migrer les **étages** (*floors*) et les **étiquettes** (*labels*) de HA, alors que Gladys organise maisons et pièces différemment ? | 03 |
-| Q9 | Forum : copier-coller du canevas uniquement, ou lien pré-rempli vers le forum (si celui-ci le permet) ? | 05 |
-| Q10 | Adopter un **modèle de rapprochement** plutôt que de création : l'intégration Gladys cible découvre l'appareil, l'outil le rapproche de l'appareil HA par un identifiant matériel (IEEE, MAC, n° de série), puis applique nom et pièce. *Motif : les intégrations externes et Matter fixent elles-mêmes l'identifiant des appareils (voir note de recherche, § 7).* | 01, 03 |
+| — | *Q1 à Q10, Q12 et Q13 sont tranchées : voir D7 à D18.* | — |
 | Q11 | Réviser D8 : plusieurs intégrations natives de la liste (Philips Hue, Tasmota, Z-Wave JS UI) sont **dépréciées** dans Gladys au profit d'intégrations externes ; Shelly n'existe qu'en externe. Règle proposée : « natif s'il est maintenu, sinon l'intégration externe recommandée ». | 03 |
-| Q12 | Livrer une **version anglaise** de la spec dans `docs/specs/` avec la pull request vers Gladys, toutes les specs du dépôt Gladys étant en anglais. La spec de travail reste en français ici. | 01 |
-| Q13 | L'import d'une sauvegarde HA demande de **modifier le cœur** de Gladys (pas de téléversement de fichier, corps des requêtes limité à 100 ko). À faire valider par les mainteneurs. | 01, 02 |
 
 ## 12. Glossaire
 
