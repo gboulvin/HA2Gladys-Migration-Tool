@@ -7,7 +7,7 @@
 | 02 | `02-extraction-ha.md` | Lecture des données HA (API et sauvegarde) | ⏳ À rédiger |
 | 03 | `03-mapping-devices.md` | Correspondances intégrations HA → services Gladys | ⏳ À rédiger |
 | 04 | `04-mapping-scenarios.md` | Automatisations HA → scènes Gladys | ⏳ À rédiger |
-| 05 | `05-ux.md` | Parcours utilisateur, écrans, rapport de migration | ⏳ À rédiger |
+| 05 | [Parcours utilisateur](05-ux.md) | Parcours utilisateur, écrans, rapport de migration | 📝 Brouillon |
 | 06 | `06-tests.md` | Stratégie de test, jeux de données | ⏳ À rédiger |
 | 07 | `07-historiques.md` | Import des historiques de données HA | ⏳ À rédiger |
 | — | [`decisions/`](decisions/README.md) | Décisions d'architecture (ADR) | — |
