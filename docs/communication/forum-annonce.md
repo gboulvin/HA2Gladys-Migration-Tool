@@ -27,9 +27,11 @@ Un **service intégré à Gladys**, accessible :
 - **Installation des intégrations** nécessaires depuis le store, en cochant des cases.
 - **Appareils** (avec leur nom et leur pièce), **pièces**, **utilisateurs** et **intégrations de service** (météo, calendriers, notifications…).
 - **Historiques** complets : statistiques long terme et états récents, y compris les compteurs d'énergie, avec une estimation de l'espace disque nécessaire.
+- **Scènes HA** (les « ambiances » : lampe à 20 %, volets fermés…), converties en scènes Gladys à lancer à la main.
+- **Automatisations simples** : horaires, lever et coucher du soleil, mouvement ou ouverture détectés, seuils de température… Les autres sont présentées sous une forme lisible, avec un brouillon de scène prérempli, pour que l'utilisateur les recrée lui-même. C'est aussi une bonne façon de découvrir l'éditeur de scènes de Gladys.
 
 **Version 2**
-- **Scènes** : conversion des automatisations HA, **uniquement quand elle est fidèle à 100 %**. Tout le reste est signalé « à refaire », avec la raison.
+- Un **assistant de migration des automatisations** plus élaborées, qui évoluera avec le moteur de scènes de Gladys.
 
 **Quelques principes**
 - **Lecture seule côté HA** : l'outil n'y modifie strictement rien.
@@ -97,7 +99,7 @@ Les **spécifications de la V1 sont rédigées**, en français, en attendant leu
 | 06 — Tests | Couverture à 100 %, CI de veille des versions de HA |
 | 07 — Historiques | Import, énergie, purge |
 
-La section 04 (scènes) est en cours. Tout le travail a vocation à être **rendu à l'organisation GladysAssistant** une fois mergé.
+La section 04 (scènes et automatisations) est en relecture. Tout le travail a vocation à être **rendu à l'organisation GladysAssistant** une fois mergé.
 
 ## Comment vous pouvez aider
 
