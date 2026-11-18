@@ -20,7 +20,7 @@ Il est construit à partir des **données migrées**, pas des cartes HA. Il est 
 | Zone | Widgets Gladys | Source | Si absent |
 |---|---|---|---|
 | **En-tête** | `house-view` (illustration de la galerie de Gladys, § 2.1), `weather` si une intégration météo a été migrée, `clock` | Maison, intégrations de service | Pas de météo : widget omis |
-| **Ambiances** | `scene` (boutons de scènes) | Scènes HA migrées (D25) | Section omise |
+| **Ambiances** | `scene` (boutons de scènes) | Scènes HA et scripts HA simples migrés (D25, D31) | Section omise |
 | **Une section par pièce**, dans l'ordre des étages puis des pièces HA | `temperature-in-room`, `humidity-in-room` (s'il y a des capteurs), `devices-in-room` | Pièces et appareils migrés | Pièce sans appareil commandable : omise |
 | **Caméras** | `camera` | Appareils caméra migrés | Section omise |
 | **Énergie** | `energy-consumption` | Compteurs d'énergie migrés (07 § 3.3) | Section omise |
