@@ -3,7 +3,7 @@
 | # | Document | Objet | Statut |
 |---|---|---|---|
 | 00 | [Vision et périmètre](00-vision.md) | Objectifs, périmètre, principes, décisions actées | 📝 Brouillon |
-| 01 | `01-architecture.md` | Forme du service Gladys, composants, flux, sécurité | ⏳ À rédiger |
+| 01 | [Architecture](01-architecture.md) | Forme du service Gladys, composants, flux, sécurité | 📝 Brouillon |
 | 02 | [Lecture des données HA](02-extraction-ha.md) | Lecture des données HA (API et sauvegarde) | 📝 Brouillon |
 | 03 | `03-mapping-devices.md` | Correspondances intégrations HA → services Gladys | ⏳ À rédiger |
 | 04 | `04-mapping-scenarios.md` | Automatisations HA → scènes Gladys | ⏳ À rédiger |
