@@ -26,7 +26,7 @@ Trois constats obligent à préciser D5 (« fidélité à 100 %, sinon à refair
    - **une scène Gladys ne peut pas se mettre en pause jusqu'à un événement**. C'est ce que fait `wait_for_trigger` dans HA : *au milieu* d'une exécution, attendre par exemple « fin du mouvement », puis **continuer la même exécution**, avec un délai maximal facultatif. Un déclencheur Gladys, lui, **démarre** une scène, il ne la reprend pas. L'équivalent passe donc par **deux scènes** (réécriture de motif, § 5). Les attentes **fixes** (`delay`), elles, existent dans Gladys et sont converties ;
    - il n'y a pas, **dans le cœur**, de condition sur la position du soleil ni de condition « dans cet état depuis N minutes ». La première se comble par un **appareil** (§ 6.1). Les **déclencheurs** lever et coucher du soleil avec décalage (§ 3.1), les conditions d'heure, de plages horaires, de calendrier, de présence et d'alarme existent bien ;
    - un `time_pattern` `/n` ne peut pas être aligné sur l'horloge ;
-   - un déclencheur MQTT avec joker ne se déclenche jamais dans Gladys.
+   - un déclencheur MQTT avec joker ne se déclenche jamais dans les versions actuelles de Gladys (bogue corrigé par [GladysAssistant/Gladys#3401](https://github.com/GladysAssistant/Gladys/pull/3401), en revue).
 
 ## 2. Doctrine de conversion (S1)
 
@@ -53,7 +53,7 @@ L'utilisateur sait ainsi exactement quoi refaire.
 
 **Refus immédiats**, avant toute analyse détaillée :
 - toute chaîne contenant un **template** Jinja (`{{` ou `{%`), où qu'elle soit ;
-- tout déclencheur `event`, `template`, `webhook`, `tag`, `conversation`, `sun` autre que lever et coucher, `time_pattern` en `/n`, MQTT avec joker.
+- tout déclencheur `event`, `template`, `webhook`, `tag`, `conversation`, `sun` autre que lever et coucher, `time_pattern` en `/n`, MQTT avec joker **sur une version de Gladys sans le correctif de [GladysAssistant/Gladys#3401](https://github.com/GladysAssistant/Gladys/pull/3401)** (la règle dépend de la version de Gladys).
 
 ### 2.3 Ordre d'évaluation et statuts
 
@@ -205,7 +205,7 @@ L'étude fait apparaître des manques dont la correction augmenterait directemen
 |---|---|---|
 | P1 | **Modes d'exécution** des scènes (`single`, `restart`, `queued`) | Débloquerait la plupart des automatisations avec délai. C'est le gain le plus important. |
 | P2 | Action **« arrêter une scène »** | Débloquerait des motifs à minuterie |
-| P3 | **Déclencheur MQTT avec jokers** (`+`, `#`) | Aujourd'hui, un tel déclencheur ne se déclenche jamais. Gladys s'abonne bien au filtre avec joker, mais compare ensuite le topic **reçu** au filtre par égalité stricte (`server/lib/scene/scene.addScene.js:240-253`, `scene.triggers.js:250-251`). **Vérifié dans le code : c'est un bogue, à signaler séparément.** |
+| P3 | **Déclencheur MQTT avec jokers** (`+`, `#`) | **Bogue, en cours de correction** : ticket [GladysAssistant/Gladys#3400](https://github.com/GladysAssistant/Gladys/issues/3400), correctif [GladysAssistant/Gladys#3401](https://github.com/GladysAssistant/Gladys/pull/3401) (comparaison par `mqttTopicMatches`, tests `+` et `#`), en attente de revue. Une fois publié, les déclencheurs MQTT avec joker deviennent convertibles **à partir de la version de Gladys qui contient le correctif**. |
 | P4 | Condition **solaire** (jour ou nuit, avant ou après le lever ou le coucher) | Motifs d'éclairage très courants. **Déjà comblée en pratique par un appareil** (virtuel ou intégration), § 6.1 : piste de confort seulement. |
 | P5 | Condition de **durée** (« dans cet état depuis N minutes ») | Motifs d'alerte |
 | P6 | **Variable du déclencheur** exposée dans l'éditeur | Automatisations à plusieurs rôles, sans réécriture |

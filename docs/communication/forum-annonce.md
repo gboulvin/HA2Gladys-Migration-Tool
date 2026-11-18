@@ -79,7 +79,7 @@ En étudiant le moteur de scènes pour la conversion des automatisations HA, j'a
 | P5 | **Déclencheur à l'origine** de la scène utilisable dans les conditions | Scènes à plusieurs déclencheurs et plusieurs comportements |
 | P6 | Condition ou déclencheur **« appareil joignable / valeur récente »** (Gladys calcule déjà « pas de valeur récente », mais seulement pour l'affichage) | Alertes « ce capteur ne répond plus », comportement proche de HA en cas d'appareil indisponible |
 
-Au passage, j'ai trouvé un **bogue** : un déclencheur « message MQTT reçu » dont le topic contient un joker (`+` ou `#`) ne se déclenche jamais. Le ticket est ouvert ici : *(lien du ticket)*.
+Au passage, j'ai trouvé un **bogue** : un déclencheur « message MQTT reçu » dont le topic contient un joker (`+` ou `#`) ne se déclenche jamais. Ticket : https://github.com/GladysAssistant/Gladys/issues/3400. Un correctif est proposé et attend la revue d'un mainteneur : https://github.com/GladysAssistant/Gladys/pull/3401.
 
 ## Ce que je demande aux développeurs d'intégrations
 
