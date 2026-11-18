@@ -11,7 +11,7 @@
 
 Le tableau de bord est la **vitrine de Gladys** : c'est la première page après la connexion. Un tableau de bord vide après la migration donnerait l'impression que « tout a disparu ». Gladys ne génère pas de tableau de bord par défaut : sans l'outil, l'utilisateur arriverait donc sur une page vide.
 
-**Principe (D28)** : à la fin de la migration, l'utilisateur arrive sur un **tableau de bord « Accueil » complet**, construit à partir de ce qui vient d'être migré. Il trouve en plus, s'il le souhaite, des **reprises de ses tableaux de bord HA**.
+**Principe (D28)** : à la fin de la migration, l'utilisateur arrive **toujours** sur un **tableau de bord « Accueil » complet**, construit à partir de ce qui vient d'être migré. Ses **tableaux de bord HA**, repris de façon approchée, viennent **à la suite** (DB2).
 
 ## 2. Le tableau de bord « Accueil » (généré)
 
@@ -19,7 +19,7 @@ Il est construit à partir des **données migrées**, pas des cartes HA. Il est 
 
 | Zone | Widgets Gladys | Source | Si absent |
 |---|---|---|---|
-| **En-tête** | `house-view` (illustration de la galerie de Gladys), `weather` si une intégration météo a été migrée, `clock` | Maison, intégrations de service | Pas de météo : widget omis |
+| **En-tête** | `house-view` (illustration de la galerie de Gladys, § 2.1), `weather` si une intégration météo a été migrée, `clock` | Maison, intégrations de service | Pas de météo : widget omis |
 | **Ambiances** | `scene` (boutons de scènes) | Scènes HA migrées (D25) | Section omise |
 | **Une section par pièce**, dans l'ordre des étages puis des pièces HA | `temperature-in-room`, `humidity-in-room` (s'il y a des capteurs), `devices-in-room` | Pièces et appareils migrés | Pièce sans appareil commandable : omise |
 | **Caméras** | `camera` | Appareils caméra migrés | Section omise |
@@ -31,9 +31,18 @@ Il est construit à partir des **données migrées**, pas des cartes HA. Il est 
 - **Mobile** : l'ordre des sections sur téléphone suit les règles des tableaux de bord de Gladys (`DASHBOARD_SECTION_MOBILE_ORDER`).
 - **Disposition** : sections et colonnes de Gladys, sans réglage fin. L'objectif est un résultat propre, pas une copie.
 
+### 2.1 Illustration de la maison (DB1)
+
+- L'outil choisit **automatiquement** une illustration de la **galerie de Gladys** (`house-modern`, `house-family`, `house-solar`, `apartment`) :
+  - `apartment` si HA ne déclare qu'un étage ou aucun ;
+  - une maison sinon ;
+  - `house-solar` s'il y a des compteurs de production solaire.
+- Le Bilan (05, écran 9) et la section « Migration en cours » de l'Accueil signalent l'outil communautaire **Isometric House Builder** de guim31, qui permet de dessiner sa propre maison pour ce widget : https://community.gladysassistant.com/t/isometric-house-builder-dessinez-votre-maison-pour-le-widget-vue-de-la-maison
+- Les illustrations générées par Gladys Plus restent bien sûr disponibles dans l'éditeur du widget.
+
 ## 3. Reprise des tableaux de bord HA (approchée)
 
-En plus de l'Accueil, l'utilisateur peut demander la reprise de ses tableaux de bord HA. Chacun devient un tableau de bord Gladys nommé « <nom HA> (HA) ». Chaque **vue** HA devient une **section** et chaque carte reconnue un widget.
+En plus de l'Accueil, les tableaux de bord HA sont repris **par défaut**, et placés **après** l'Accueil. Chacun devient un tableau de bord Gladys nommé « <nom HA> (HA) ». Chaque **vue** HA devient une **section** et chaque carte reconnue un widget.
 
 **Ici, une approximation est acceptable** : contrairement aux scènes, un tableau de bord ne commande rien de lui-même. Une différence de rendu n'a pas de conséquence sur la maison.
 
@@ -58,15 +67,15 @@ En plus de l'Accueil, l'utilisateur peut demander la reprise de ses tableaux de 
 
 ## 4. Choix de l'utilisateur et sécurité
 
-- **Écran Choix** (05, écran 4) : « Créer un tableau de bord d'accueil » (coché par défaut) et « Reprendre mes tableaux de bord Home Assistant » (décoché par défaut, avec la liste de ceux trouvés).
-- **Page d'arrivée** : si Gladys n'a encore aucun tableau de bord, l'Accueil devient le premier, c'est-à-dire la page d'arrivée. Si l'utilisateur en a déjà, les nouveaux sont **ajoutés à la fin**, sans toucher à l'ordre existant. L'outil propose seulement de placer l'Accueil en premier.
+- **Écran Choix** (05, écran 4) : l'**Accueil est toujours créé**. « Reprendre mes tableaux de bord Home Assistant » est **coché par défaut**, avec la liste de ceux trouvés, chacun décochable.
+- **Ordre** : l'Accueil, puis les tableaux de bord HA repris. Si Gladys n'a encore aucun tableau de bord, l'Accueil devient le premier, c'est-à-dire la page d'arrivée. Si l'utilisateur en a déjà, les nouveaux sont **ajoutés à la fin**, sans toucher à l'ordre existant. L'outil propose seulement de placer l'Accueil en premier.
 - **Création après les appareils et les scènes** : un tableau de bord référence des fonctions et des scènes qui doivent exister. Étape intégrée à l'écran 9 (Bilan) : aperçu, puis « Créer ».
 - **Journal et annulation** (A9) : les tableaux de bord créés sont journalisés et supprimés à l'annulation. Une modification de l'ordre est restaurée.
 - **Relance** (D13) : un tableau de bord déjà créé n'est **jamais régénéré** par-dessus, puisque l'utilisateur a pu le modifier. L'outil propose seulement d'ajouter les nouveaux appareils dans une section « Nouveautés ».
 
-## 5. Questions ouvertes
+## 5. Décisions
 
-| # | Question |
+| # | Décision |
 |---|---|
-| Q08-1 | **Illustration de la maison** (`house-view`) : choisir automatiquement dans la galerie de Gladys (maison, appartement…) d'après le nombre d'étages HA, ou laisser l'utilisateur choisir ? |
-| Q08-2 | **Reprise des tableaux de bord HA** décochée par défaut : d'accord ? L'Accueil est souvent plus parlant qu'une reprise approchée, mais certains utilisateurs tiendront à retrouver leur organisation. |
+| DB1 | Illustration choisie **automatiquement** dans la galerie de Gladys, avec un renvoi vers l'outil communautaire **Isometric House Builder** de guim31 pour la personnaliser (§ 2.1, ex-Q08-1). |
+| DB2 | L'**Accueil est toujours créé**. Les tableaux de bord HA sont repris **par défaut** et placés **à la suite** (§ 3 et 4, ex-Q08-2). |
