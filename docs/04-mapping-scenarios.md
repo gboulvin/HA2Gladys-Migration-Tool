@@ -84,11 +84,11 @@ Une automatisation non convertie n'est pas une impasse. C'est l'occasion, pour l
 > - **Si** : quelqu'un est à la maison *(présence, non migrée)*
 > - **Alors** : fermer « Volet salon » (Salon), attendre 10 minutes, éteindre « Lampe salon »
 > - **Pourquoi elle n'a pas été convertie** : condition de présence
-> - Bouton **« Créer cette scène dans Gladys »** : ouvre l'éditeur avec un brouillon prérempli de tout ce qui est convertible (déclencheur, actions). L'utilisateur complète le reste.
+> - Bouton **« Créer un brouillon dans Gladys »** : crée une scène **désactivée**, préremplie de tout ce qui est convertible (déclencheur, actions), et ouvre l'éditeur. L'utilisateur complète le reste, puis active la scène.
 
 - Les éléments sont décrits avec les **noms Gladys** des appareils migrés, pas avec les identifiants HA.
 - La fiche est produite à partir des mêmes tables que la conversion : les éléments connus sont formulés en clair, les autres sont cités tels quels (« template », « script `xyz` »).
-- Le **brouillon prérempli** n'est jamais enregistré ni activé sans l'action de l'utilisateur.
+- Le brouillon n'est créé qu'à la demande de l'utilisateur, et **désactivé** : il ne se déclenche pas tant que l'utilisateur ne l'a pas activé. C'est le fonctionnement normal de Gladys, où l'on crée d'abord une scène, puis on la complète dans l'éditeur (`front/src/actions/createScene.js`). Le brouillon porte l'étiquette « Home Assistant », figure au journal, et est donc supprimé en cas d'annulation (A9).
 
 ### 2.6 Assistant de migration des automatisations (V2, S7)
 
