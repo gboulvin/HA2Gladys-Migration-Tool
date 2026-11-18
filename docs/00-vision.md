@@ -34,7 +34,9 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 |---|---|---|
 | **Lot 1 — Appareils** | Appareils et entités HA, pièces (*areas*), personnes HA vers utilisateurs Gladys, intégrations de type « service » (météo, calendriers, notifications…), rattachement aux intégrations Gladys | V1 |
 | **Lot 1 bis — Historiques** | Historique des valeurs des appareils migrés (voir § 9 ter) | V1 |
-| **Lot 2 — Scénarios** | Automatisations HA (déclencheurs, conditions, actions) converties en scènes Gladys | V2 |
+| **Lot 1 ter — Scènes HA** | Instantanés d'états (« ambiances ») convertis en scènes Gladys sans déclencheur (D25) | V1 |
+| **Lot 1 quater — Automatisations simples** | Automatisations HA simples (déclencheurs horaires et solaires, mouvement et ouverture, actions de base) converties en scènes Gladys (D26) | V1 |
+| **Lot 2 — Assistant de migration des automatisations** | Outil distinct, pour les automatisations plus élaborées, au fil des évolutions du moteur de scènes de Gladys (D26) | V2 |
 | **Transverse** | Rapport de compatibilité, suggestions d'intégrations alternatives, canevas de message pour le forum, rapport final | V1 |
 
 ### 4.2 Hors périmètre (pour l'instant)
@@ -69,7 +71,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 3. **Analyse** : l'outil inventorie les appareils et les automatisations, puis classe chaque élément (voir § 8).
 4. **Sélection** : l'utilisateur coche ce qu'il veut importer et ajuste les pièces si besoin.
 5. **Prérequis** : l'outil indique quels services Gladys activer ou configurer (par exemple le service Zigbee2MQTT) et vérifie qu'ils sont prêts.
-6. **Import** : création des pièces, des appareils puis, au lot 2, des scènes.
+6. **Import** : création des pièces, des appareils, puis des scènes (scènes HA et automatisations simples).
 7. **Rapport final** : bilan, liste des actions manuelles restantes et canevas de messages pour le forum. Le rapport est exportable.
 
 ## 6 bis. Un seul outil, en plusieurs phases
@@ -117,6 +119,8 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D22 | Les **historiques de données** des appareils migrés font partie de la **V1**. Voir § 9 ter. | Cadrage du 2026-11-17 |
 | D23 | Historiques : on importe **les deux niveaux**, les états bruts et les statistiques long terme. | Cadrage du 2026-11-17 (ex-Q16) |
 | D24 | Historiques : **tout l'historique** est importé, sans limite de profondeur. Avant l'import, l'outil **estime le volume** nécessaire et le compare à **l'espace disque disponible**. Il avertit l'utilisateur, ou bloque l'import, si la place manque. | Cadrage du 2026-11-17 (ex-Q17) |
+| D25 | Les **scènes HA** (instantanés d'états, sans déclencheur) sont migrées **dès la V1**, en scènes Gladys sans déclencheur lancées à la main. La conversion des **automatisations** reste au lot 2 (V2). Voir 04 § 8 bis. | Cadrage du 2026-11-17 |
+| D26 | **Migrer tout ce qui est migrable, sans que cela devienne un casse-tête pour l'utilisateur.** La V1 convertit les scènes HA (D25) et les **automatisations simples** : déclencheurs horaires et solaires, mouvement ou ouverture détectés, conditions simples, actions de base (04 § 2.4). Les automatisations plus élaborées relèvent d'un **assistant de migration des automatisations distinct** (V2), car le fonctionnement des deux moteurs diffère profondément. Les automatisations non converties sont présentées sous une forme lisible, pour que l'utilisateur les recrée lui-même : c'est aussi sa porte d'entrée dans les scènes de Gladys. | Cadrage du 2026-11-18 |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
@@ -132,7 +136,7 @@ Chaque appareil HA reçoit un des statuts ci-dessous.
 | ❌ **Non migrable** | Aucune prise en charge dans Gladys. | Canevas de message pour le forum (demande d'intégration), pré-rempli avec les informations utiles (intégration HA, fabricant, modèle, fonctions) |
 | ⏭️ **Ignoré** | Élément sans intérêt pour Gladys : entités système, diagnostics, mises à jour, entités désactivées dans HA… | Rien, mais l'élément reste visible dans le rapport détaillé |
 
-Pour les automatisations (lot 2), les statuts sont :
+Pour les automatisations, les statuts sont :
 
 | Statut | Signification |
 |---|---|
