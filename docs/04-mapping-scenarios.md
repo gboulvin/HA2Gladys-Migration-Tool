@@ -123,7 +123,7 @@ La table complète est dans la note de recherche (S § 4). Voici les règles qui
 | `or` contenant un `and` : refus | Pas de ET imbriqué dans un OU |
 | `not` : opérateur inversé (`=` ↔ `!=`, `>` ↔ `<=`) | Exact, hors E1 |
 | Condition de **durée** (`for`), `zone`, `template`, `trigger` : refus | Pas d'équivalent |
-| Condition `sun` : refus **pour l'instant** | Pas d'équivalent dans le cœur, mais une intégration externe peut le combler (§ 6.1) |
+| Condition `sun` : convertie **via un substitut** (appareil « il fait jour »), sinon refus | Pas d'équivalent dans le cœur, mais un appareil peut le fournir (§ 6.1) |
 
 ### 3.3 Actions
 
@@ -202,32 +202,59 @@ L'étude fait apparaître des manques dont la correction augmenterait directemen
 | P1 | **Modes d'exécution** des scènes (`single`, `restart`, `queued`) | Débloquerait la plupart des automatisations avec délai. C'est le gain le plus important. |
 | P2 | Action **« arrêter une scène »** | Débloquerait des motifs à minuterie |
 | P3 | **Déclencheur MQTT avec jokers** (`+`, `#`) | Aujourd'hui, un tel déclencheur ne se déclenche jamais. Gladys s'abonne bien au filtre avec joker, mais compare ensuite le topic **reçu** au filtre par égalité stricte (`server/lib/scene/scene.addScene.js:240-253`, `scene.triggers.js:250-251`). **Vérifié dans le code : c'est un bogue, à signaler séparément.** |
-| P4 | Condition **solaire** (jour ou nuit, avant ou après le lever ou le coucher) | Motifs d'éclairage très courants. **Peut être comblée sans toucher au cœur**, par une intégration externe (§ 6.1). |
+| P4 | Condition **solaire** (jour ou nuit, avant ou après le lever ou le coucher) | Motifs d'éclairage très courants. **Déjà comblée en pratique par un appareil** (virtuel ou intégration), § 6.1 : piste de confort seulement. |
 | P5 | Condition de **durée** (« dans cet état depuis N minutes ») | Motifs d'alerte |
 | P6 | **Variable du déclencheur** exposée dans l'éditeur | Automatisations à plusieurs rôles, sans réécriture |
 
-### 6.1 Ce qu'une intégration externe peut combler : l'exemple du soleil
+### 6.1 Substituts : ce que le cœur ne fournit pas, un appareil peut le fournir (S8)
 
-Les intégrations externes peuvent ajouter des **déclencheurs** et des **actions** de scène, mais pas de conditions. C'est un choix de la spec de Gladys : une action qui renvoie une valeur, suivie de `condition.only-continue-if`, couvre le besoin (`docs/specs/external-integrations/capabilities/scene-triggers-and-actions.md`). Surtout, elles peuvent publier des **appareils** dont les fonctions servent ensuite de conditions et de déclencheurs ordinaires.
+**Principe.** Dans Gladys, ce que le cœur ne fournit pas est couramment comblé par un **appareil** : un appareil virtuel ou une intégration externe. La plupart des utilisateurs ont, par exemple, un appareil qui indique s'il fait jour ou nuit. Une fois cet appareil en place, ses fonctions servent de **déclencheurs et de conditions ordinaires**. Or HA fonctionne de la même façon : le soleil (`sun.sun`), les jours ouvrés (`binary_sensor.workday`) ou les « entrées » créées par l'utilisateur (`input_boolean`, `input_number`…) sont des **entités**.
 
-**État du store (vérifié le 2026-11-18, 1 188 intégrations)** : aucune intégration n'expose aujourd'hui l'état « jour / nuit » ni l'élévation du soleil.
-- `guim31/gladys-astronomy` calcule crépuscules et aubes, mais pour l'observation du ciel : déclencheurs d'éclipses, de nuits noires, d'étoiles filantes.
-- `guim31/gladys-volets-soleil` calcule l'élévation et l'azimut, mais n'expose qu'un conseil de fermeture par façade et un déclencheur « le soleil arrive sur une façade ».
+Le convertisseur ne s'arrête donc pas à « pas d'équivalent dans le cœur ». Pour toute entité HA référencée par une automatisation, il cherche un **substitut**, dans cet ordre :
 
-**Or HA traite le soleil comme un appareil** : l'entité `sun.sun` vaut `above_horizon` ou `below_horizon`, avec les attributs `elevation`, `azimuth`, `next_rising`… Une intégration externe **« Soleil »** publiant un appareil équivalent serait courte à écrire, puisque les calculs existent déjà dans les deux intégrations citées. Elle exposerait :
-- une fonction binaire **« il fait jour »** ;
-- l'**élévation** et l'**azimut**, en degrés.
+| # | Substitut | Exemple | Comment |
+|---|---|---|---|
+| 1 | **Appareil Gladys existant**, désigné par l'utilisateur | « Il fait jour » d'un appareil virtuel déjà en place | L'outil demande **une seule fois** : « Quel appareil indique s'il fait jour ? » Le choix vaut pour toutes les automatisations et est mémorisé dans le journal. |
+| 2 | **Appareil virtuel créé par l'outil** à partir d'une entrée HA (*helper*) | `input_boolean.mode_vacances` → interrupteur virtuel « Mode vacances » | Migration de l'entrée comme un appareil (§ 6.2) |
+| 3 | **Intégration externe** du store | `binary_sensor.workday` → intégration « Holidays & Workdays » (`guim31/gladys-holidays`) | Comme pour tout appareil : catalogue, installation, rapprochement (03) |
+| 4 | **Aucun substitut** | Capteur `template` de HA, calculé par une formule Jinja | Refus : « à recréer » |
 
-Avec elle, sans modifier ni le cœur ni l'outil :
-- la condition HA `sun` (après le coucher, avant le lever) devient une condition **d'état** sur « il fait jour » ;
-- `state: sun.sun` et `numeric_state` sur `elevation`, en condition ou en déclencheur, deviennent des règles **d'appareil** ordinaires, dans le socle V1 ;
-- le domaine HA `sun` entre au **catalogue** comme n'importe quelle intégration (03), avec cette cible.
+Dès qu'un substitut existe, les éléments qui le visent sont traités comme des **règles d'appareil ordinaires**, et entrent dans le socle V1 (§ 2.4) :
 
-L'écart E4 demeure : les calculs astronomiques diffèrent légèrement d'une bibliothèque à l'autre.
+| HA | Avec substitut |
+|---|---|
+| Condition `sun` : `after: sunset`, `before: sunrise` (sans décalage) | Condition d'état sur « il fait jour » = 0 |
+| Condition `state: sun.sun = above_horizon` | Condition d'état sur « il fait jour » = 1 |
+| Déclencheur `numeric_state` sur l'élévation du soleil | Déclencheur de seuil, si le substitut expose l'élévation |
+| Condition sur `binary_sensor.workday` | Condition d'état sur la fonction « jour ouvré » |
+| Déclencheur ou condition sur `input_boolean` | Déclencheur ou condition d'état sur l'interrupteur virtuel |
+| Action `input_boolean.turn_on` / `input_number.set_value` | `device.set-value` sur l'appareil virtuel |
 
-**Généralisation** : c'est le parcours D15 (« créez l'intégration ») appliqué aux scènes. Chaque fois qu'une condition HA porte sur une **entité calculée** (soleil, saison, jour ouvré, fenêtre de tarif…), une intégration qui expose cette valeur comme fonction d'appareil la rend convertible. Le rapport de l'outil doit donc distinguer deux cas de refus :
-- **« impossible dans Gladys »** : modes, `wait_for_trigger`… ;
-- **« possible avec une intégration qui n'existe pas encore »** : le soleil, par exemple, avec le même encouragement à la créer que pour les appareils.
+Les **décalages** d'une condition `sun` (`after_offset`, `before_offset`) n'ont pas d'équivalent sur un état binaire, et restent refusés. L'écart E4 (calculs astronomiques) demeure, et il est affiché.
+
+**État du store** (vérifié le 2026-11-18, 1 188 intégrations) : aucune intégration n'expose encore « il fait jour » ni l'élévation du soleil. `guim31/gladys-astronomy` et `guim31/gladys-volets-soleil` font les calculs, sans publier ces valeurs. Le substitut n° 1 (appareil existant de l'utilisateur) couvre le cas en attendant. Une intégration « Soleil » dédiée serait courte à écrire, et proposée selon le parcours D15.
+
+**Dans le rapport**, un refus faute de substitut est distingué d'un refus définitif :
+- **« impossible dans Gladys »** : modes d'exécution, `wait_for_trigger`… ;
+- **« possible avec un appareil »** : indiquer l'appareil existant qui convient, ou installer ou créer l'intégration.
+
+### 6.2 Entrées HA (*helpers*) → appareils virtuels (proposition, S9)
+
+Les entrées HA sont très présentes dans les automatisations : mode vacances, mode nuit, consigne réglable, compteur… Gladys les remplace par des **appareils virtuels** (« Appareils virtuels MQTT » : appareils créés à la main, pilotables dans les scènes et sur le tableau de bord).
+
+| Entrée HA | Appareil virtuel Gladys |
+|---|---|
+| `input_boolean` | Fonction interrupteur (binaire) |
+| `input_number` | Fonction numérique, avec les mêmes min, max, pas et unité |
+| `counter` | Fonction numérique entière |
+| `input_select`, `input_text`, `input_datetime`, `timer`, `schedule` | Pas d'équivalent simple : refus en V1 |
+
+- Valeur initiale : l'état actuel dans HA.
+- Prérequis : le service MQTT de Gladys configuré, avec un broker. Gladys sait installer le sien. Une commande sur un appareil virtuel publie sur MQTT (`server/services/mqtt/lib/setValue.js`) et échoue sans broker.
+- Ces appareils figurent au journal comme les autres (annulation A9) et portent l'étiquette « Home Assistant ».
+- *À vérifier dans le code de Gladys : création programmatique d'un appareil virtuel MQTT, et enregistrement de l'état sans retour (`has_feedback: false`).*
+
+**Proposition** : migrer les entrées HA **dès la V1**, avec les appareils. C'est peu de travail, et cela rend convertible une grande partie des automatisations « à modes » (vacances, nuit, absence) du socle V1.
 
 ## 7. Création des scènes
 
@@ -252,7 +279,9 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 | Chauffage selon la présence | ✋ (V2) |
 | Alerte de température (seuil et durée) | ✅ |
 | Volets au coucher du soleil avec décalage | ✅ (E4 affiché) |
-| Volets selon l'élévation du soleil | ✋ aujourd'hui, ✅ avec une intégration « Soleil » (§ 6.1) |
+| Volets selon l'élévation du soleil | ✅ si un appareil expose l'élévation (§ 6.1), sinon ✋ |
+| Lumière seulement s'il fait nuit (condition `sun`) | ✅ avec l'appareil « il fait jour » de l'utilisateur (§ 6.1) |
+| Automatisations à modes (vacances, nuit) via `input_boolean` | ✅ si les entrées sont migrées en appareils virtuels (§ 6.2) |
 | Bouton sans fil (Zigbee) | ✅ si le catalogue déclare les événements (§ 4) |
 | Automatisations à plusieurs rôles (`choose` sur `trigger.id`) | 🔁 réécriture |
 | Tout ce qui contient un template | ✋ |
@@ -290,6 +319,7 @@ En complément de 06 :
 |---|---|
 | S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
 | S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S8 | Le convertisseur cherche un **substitut** (appareil existant, appareil virtuel, intégration) à toute entité HA qui n'a pas d'équivalent dans le cœur, avant de refuser (§ 6.1). |
 | S5 | **V1** : scènes HA et **automatisations simples** (§ 2.4), dont le motif « lumière sur mouvement » (D26). |
 | S6 | Les automatisations non converties sont présentées sous forme de **fiche lisible**, avec un brouillon de scène prérempli (§ 2.5). |
 | S7 | Les automatisations élaborées relèvent d'un **assistant distinct** (V2), qui réutilise les fondations de la V1 (§ 2.6). |
