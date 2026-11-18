@@ -26,12 +26,17 @@ Un **service intégré à Gladys**, accessible :
 - **Analyse** de l'installation HA, avec un rapport de compatibilité appareil par appareil : migrable, partiel, via une alternative, non migrable, ignoré.
 - **Installation des intégrations** nécessaires depuis le store, en cochant des cases.
 - **Appareils** (avec leur nom et leur pièce), **pièces**, **utilisateurs** et **intégrations de service** (météo, calendriers, notifications…).
+- **Entrées HA** (mode vacances, consignes réglables, compteurs) recréées en **appareils virtuels**.
+- **Présence** : traqueurs réseau et Bluetooth rattachés aux utilisateurs, zones, arrivées et départs.
+- **Modules complémentaires** HA (Mosquitto, Zigbee2MQTT, Node-RED, Frigate…) associés à leur équivalent Gladys : service natif ou intégration du store.
 - **Historiques** complets : statistiques long terme et états récents, y compris les compteurs d'énergie, avec une estimation de l'espace disque nécessaire.
-- **Scènes HA** (les « ambiances » : lampe à 20 %, volets fermés…), converties en scènes Gladys à lancer à la main.
+- **Scènes HA** (les « ambiances » : lampe à 20 %, volets fermés…) et **scripts simples**, convertis en scènes Gladys à lancer à la main.
 - **Automatisations simples** : horaires, lever et coucher du soleil, mouvement ou ouverture détectés, seuils de température… Les autres sont présentées sous une forme lisible, avec un brouillon de scène prérempli, pour que l'utilisateur les recrée lui-même. C'est aussi une bonne façon de découvrir l'éditeur de scènes de Gladys.
+- Ce qui n'a pas d'équivalent dans le cœur (le soleil, les jours ouvrés…) peut s'appuyer sur un **appareil** que vous avez déjà, sur un appareil virtuel ou sur une intégration : l'outil vous demande simplement lequel utiliser.
+- **Tableaux de bord** : un tableau de bord **« Accueil »** est généré à partir de ce qui a été migré (pièces, ambiances, météo, caméras, énergie), pour ne jamais arriver sur une page vide. Vos tableaux de bord HA sont repris à la suite, de façon approchée.
 
 **Version 2**
-- Un **assistant de migration des automatisations** plus élaborées, qui évoluera avec le moteur de scènes de Gladys.
+- Un **assistant de migration des automatisations** plus élaborées et des scripts à paramètres, qui évoluera avec le moteur de scènes de Gladys.
 
 **Quelques principes**
 - **Lecture seule côté HA** : l'outil n'y modifie strictement rien.
@@ -69,9 +74,10 @@ En étudiant le moteur de scènes pour la conversion des automatisations HA, j'a
 |---|---|---|
 | P1 | **Modes d'exécution** des scènes (« ignorer si déjà en cours », « redémarrer », « mettre en file ») | Aujourd'hui, toutes les exécutions d'une scène tournent en parallèle. Une scène avec une attente peut donc se lancer plusieurs fois en même temps. C'est le gain le plus important. |
 | P2 | Action **« arrêter une scène »** | Motifs à minuterie |
-| P3 | Condition **solaire** (il fait jour ou nuit, avant ou après le coucher) | Éclairage, volets |
+| P3 | Condition **solaire** (il fait jour ou nuit, avant ou après le coucher) | Éclairage, volets. En pratique, un appareil « jour/nuit » couvre déjà le besoin. Une petite intégration « Soleil » (état jour/nuit, élévation, azimut) serait bienvenue dans le store. |
 | P4 | Condition de **durée** (« dans cet état depuis N minutes ») | Alertes |
 | P5 | **Déclencheur à l'origine** de la scène utilisable dans les conditions | Scènes à plusieurs déclencheurs et plusieurs comportements |
+| P6 | Condition ou déclencheur **« appareil joignable / valeur récente »** (Gladys calcule déjà « pas de valeur récente », mais seulement pour l'affichage) | Alertes « ce capteur ne répond plus », comportement proche de HA en cas d'appareil indisponible |
 
 Au passage, j'ai trouvé un **bogue** : un déclencheur « message MQTT reçu » dont le topic contient un joker (`+` ou `#`) ne se déclenche jamais. Le ticket est ouvert ici : *(lien du ticket)*.
 
@@ -94,12 +100,14 @@ Les **spécifications de la V1 sont rédigées**, en français, en attendant leu
 | 00 — Vision | Objectifs, périmètre, décisions |
 | 01 — Architecture | Service du cœur, tables, sécurité, annulation |
 | 02 — Lecture de HA | API, sauvegardes (y compris chiffrées), historique |
-| 03 — Correspondances | Catalogue, rapprochement, pièces, personnes |
+| 03 — Correspondances | Catalogue, rapprochement, pièces, personnes, entrées HA, modules complémentaires |
+| 04 — Scènes | Scènes et scripts HA, automatisations simples, présence, substituts |
 | 05 — Parcours | Les écrans de l'assistant |
 | 06 — Tests | Couverture à 100 %, CI de veille des versions de HA |
 | 07 — Historiques | Import, énergie, purge |
+| 08 — Tableaux de bord | Accueil généré, reprise des tableaux de bord HA |
 
-La section 04 (scènes et automatisations) est en relecture. Tout le travail a vocation à être **rendu à l'organisation GladysAssistant** une fois mergé.
+Tout le travail a vocation à être **rendu à l'organisation GladysAssistant** une fois mergé.
 
 ## Comment vous pouvez aider
 
