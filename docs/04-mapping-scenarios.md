@@ -122,7 +122,8 @@ La table complète est dans la note de recherche (S § 4). Voici les règles qui
 | `or` de comparaisons simples : **une** action à plusieurs conditions | OU natif |
 | `or` contenant un `and` : refus | Pas de ET imbriqué dans un OU |
 | `not` : opérateur inversé (`=` ↔ `!=`, `>` ↔ `<=`) | Exact, hors E1 |
-| Condition de **durée** (`for`), `sun`, `zone`, `template`, `trigger` : refus | Pas d'équivalent |
+| Condition de **durée** (`for`), `zone`, `template`, `trigger` : refus | Pas d'équivalent |
+| Condition `sun` : refus **pour l'instant** | Pas d'équivalent dans le cœur, mais une intégration externe peut le combler (§ 6.1) |
 
 ### 3.3 Actions
 
@@ -201,9 +202,32 @@ L'étude fait apparaître des manques dont la correction augmenterait directemen
 | P1 | **Modes d'exécution** des scènes (`single`, `restart`, `queued`) | Débloquerait la plupart des automatisations avec délai. C'est le gain le plus important. |
 | P2 | Action **« arrêter une scène »** | Débloquerait des motifs à minuterie |
 | P3 | **Déclencheur MQTT avec jokers** (`+`, `#`) | Aujourd'hui, un tel déclencheur ne se déclenche jamais. Gladys s'abonne bien au filtre avec joker, mais compare ensuite le topic **reçu** au filtre par égalité stricte (`server/lib/scene/scene.addScene.js:240-253`, `scene.triggers.js:250-251`). **Vérifié dans le code : c'est un bogue, à signaler séparément.** |
-| P4 | Condition **solaire** (jour ou nuit, avant ou après le lever ou le coucher) | Motifs d'éclairage très courants |
+| P4 | Condition **solaire** (jour ou nuit, avant ou après le lever ou le coucher) | Motifs d'éclairage très courants. **Peut être comblée sans toucher au cœur**, par une intégration externe (§ 6.1). |
 | P5 | Condition de **durée** (« dans cet état depuis N minutes ») | Motifs d'alerte |
 | P6 | **Variable du déclencheur** exposée dans l'éditeur | Automatisations à plusieurs rôles, sans réécriture |
+
+### 6.1 Ce qu'une intégration externe peut combler : l'exemple du soleil
+
+Les intégrations externes peuvent ajouter des **déclencheurs** et des **actions** de scène, mais pas de conditions. C'est un choix de la spec de Gladys : une action qui renvoie une valeur, suivie de `condition.only-continue-if`, couvre le besoin (`docs/specs/external-integrations/capabilities/scene-triggers-and-actions.md`). Surtout, elles peuvent publier des **appareils** dont les fonctions servent ensuite de conditions et de déclencheurs ordinaires.
+
+**État du store (vérifié le 2026-11-18, 1 188 intégrations)** : aucune intégration n'expose aujourd'hui l'état « jour / nuit » ni l'élévation du soleil.
+- `guim31/gladys-astronomy` calcule crépuscules et aubes, mais pour l'observation du ciel : déclencheurs d'éclipses, de nuits noires, d'étoiles filantes.
+- `guim31/gladys-volets-soleil` calcule l'élévation et l'azimut, mais n'expose qu'un conseil de fermeture par façade et un déclencheur « le soleil arrive sur une façade ».
+
+**Or HA traite le soleil comme un appareil** : l'entité `sun.sun` vaut `above_horizon` ou `below_horizon`, avec les attributs `elevation`, `azimuth`, `next_rising`… Une intégration externe **« Soleil »** publiant un appareil équivalent serait courte à écrire, puisque les calculs existent déjà dans les deux intégrations citées. Elle exposerait :
+- une fonction binaire **« il fait jour »** ;
+- l'**élévation** et l'**azimut**, en degrés.
+
+Avec elle, sans modifier ni le cœur ni l'outil :
+- la condition HA `sun` (après le coucher, avant le lever) devient une condition **d'état** sur « il fait jour » ;
+- `state: sun.sun` et `numeric_state` sur `elevation`, en condition ou en déclencheur, deviennent des règles **d'appareil** ordinaires, dans le socle V1 ;
+- le domaine HA `sun` entre au **catalogue** comme n'importe quelle intégration (03), avec cette cible.
+
+L'écart E4 demeure : les calculs astronomiques diffèrent légèrement d'une bibliothèque à l'autre.
+
+**Généralisation** : c'est le parcours D15 (« créez l'intégration ») appliqué aux scènes. Chaque fois qu'une condition HA porte sur une **entité calculée** (soleil, saison, jour ouvré, fenêtre de tarif…), une intégration qui expose cette valeur comme fonction d'appareil la rend convertible. Le rapport de l'outil doit donc distinguer deux cas de refus :
+- **« impossible dans Gladys »** : modes, `wait_for_trigger`… ;
+- **« possible avec une intégration qui n'existe pas encore »** : le soleil, par exemple, avec le même encouragement à la créer que pour les appareils.
 
 ## 7. Création des scènes
 
@@ -228,7 +252,7 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 | Chauffage selon la présence | ✋ (V2) |
 | Alerte de température (seuil et durée) | ✅ |
 | Volets au coucher du soleil avec décalage | ✅ (E4 affiché) |
-| Volets selon l'élévation du soleil | ✋ |
+| Volets selon l'élévation du soleil | ✋ aujourd'hui, ✅ avec une intégration « Soleil » (§ 6.1) |
 | Bouton sans fil (Zigbee) | ✅ si le catalogue déclare les événements (§ 4) |
 | Automatisations à plusieurs rôles (`choose` sur `trigger.id`) | 🔁 réécriture |
 | Tout ce qui contient un template | ✋ |
