@@ -19,7 +19,7 @@ Trois constats obligent à préciser D5 (« fidélité à 100 %, sinon à refair
 2. **Gladys n'a pas de mode d'exécution** : toutes les exécutions d'une scène tournent en parallèle, sans limite (S § 1.4). Le mode `single` de HA, qui est le mode par défaut, n'est reproduit fidèlement que pour une séquence **sans attente**.
 3. **Plusieurs différences fines** rendent impossibles des éléments qui semblaient simples :
    - une `condition` dans une branche arrête **toute** la scène dans Gladys, et seulement la branche dans HA ;
-   - Gladys n'offre ni `wait_for_trigger`, ni condition sur le soleil, ni condition de durée ;
+   - Gladys n'offre ni `wait_for_trigger`, ni **condition** sur le soleil (les **déclencheurs** lever et coucher du soleil, avec décalage, existent bien : § 3.1), ni condition de durée ;
    - un `time_pattern` `/n` ne peut pas être aligné sur l'horloge ;
    - un déclencheur MQTT avec joker ne se déclenche jamais dans Gladys.
 
@@ -110,7 +110,7 @@ La table complète est dans la note de recherche (S § 4). Voici les règles qui
 | Tout déclencheur d'état ou de seuil devient `device.new-state` **avec `threshold_only: true`** | Sans cette option, Gladys déclenche à **chaque rapport** de l'appareil, même si la valeur n'a pas changé. Avec une durée (`for_duration`), il déclencherait en boucle. |
 | `above` / `below` deviennent `>` / `<`, **jamais** `>=` / `<=` | HA compare strictement |
 | `state` **sans** `from` ni `to` : refus | HA se déclenche aussi sur un changement d'**attribut**, pas Gladys |
-| Lever et coucher du soleil avec décalage : acceptés seulement si l'heure obtenue reste **dans la même journée** | Gladys recalcule ses tâches à minuit : « coucher + 4 h » ne se déclencherait jamais |
+| Lever et coucher du soleil, avec ou sans décalage (« 30 minutes avant le lever ») : déclencheurs **natifs** de Gladys (`time.sunrise`, `time.sunset`), convertis directement. Une seule limite : l'heure obtenue doit rester **dans la même journée**. | Gladys recalcule ses tâches à minuit : « coucher + 4 h » (après minuit) ou « lever − 8 h » (la veille) ne se déclencheraient jamais. Les décalages courants (quelques minutes à quelques heures) ne sont pas concernés. |
 | `time` entre 02:00 et 03:00 : refus | Changement d'heure : saut ou double exécution, selon le système |
 | `homeassistant: start` devient `system.start` | Accepté, avec mention : c'est le démarrage de **Gladys** |
 
@@ -238,7 +238,7 @@ Les **décalages** d'une condition `sun` (`after_offset`, `before_offset`) n'ont
 - **« impossible dans Gladys »** : modes d'exécution, `wait_for_trigger`… ;
 - **« possible avec un appareil »** : indiquer l'appareil existant qui convient, ou installer ou créer l'intégration.
 
-### 6.2 Entrées HA (*helpers*) → appareils virtuels (proposition, S9)
+### 6.2 Entrées HA (*helpers*) → appareils virtuels — V1 (S9)
 
 Les entrées HA sont très présentes dans les automatisations : mode vacances, mode nuit, consigne réglable, compteur… Gladys les remplace par des **appareils virtuels** (« Appareils virtuels MQTT » : appareils créés à la main, pilotables dans les scènes et sur le tableau de bord).
 
@@ -254,7 +254,7 @@ Les entrées HA sont très présentes dans les automatisations : mode vacances, 
 - Ces appareils figurent au journal comme les autres (annulation A9) et portent l'étiquette « Home Assistant ».
 - *À vérifier dans le code de Gladys : création programmatique d'un appareil virtuel MQTT, et enregistrement de l'état sans retour (`has_feedback: false`).*
 
-**Proposition** : migrer les entrées HA **dès la V1**, avec les appareils. C'est peu de travail, et cela rend convertible une grande partie des automatisations « à modes » (vacances, nuit, absence) du socle V1.
+**Décision (S9, D27)** : les entrées HA sont migrées **dès la V1**, avec les appareils (05, écran 6). Cela rend convertibles une grande partie des automatisations « à modes » (vacances, nuit, absence) du socle V1.
 
 ## 7. Création des scènes
 
@@ -319,6 +319,7 @@ En complément de 06 :
 |---|---|
 | S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
 | S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S9 | Les **entrées HA** (`input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en appareils virtuels (§ 6.2, D27). |
 | S8 | Le convertisseur cherche un **substitut** (appareil existant, appareil virtuel, intégration) à toute entité HA qui n'a pas d'équivalent dans le cœur, avant de refuser (§ 6.1). |
 | S5 | **V1** : scènes HA et **automatisations simples** (§ 2.4), dont le motif « lumière sur mouvement » (D26). |
 | S6 | Les automatisations non converties sont présentées sous forme de **fiche lisible**, avec un brouillon de scène prérempli (§ 2.5). |

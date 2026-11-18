@@ -32,7 +32,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 
 | Lot | Contenu | Priorité |
 |---|---|---|
-| **Lot 1 — Appareils** | Appareils et entités HA, pièces (*areas*), personnes HA vers utilisateurs Gladys, intégrations de type « service » (météo, calendriers, notifications…), rattachement aux intégrations Gladys | V1 |
+| **Lot 1 — Appareils** | Appareils et entités HA, **entrées HA en appareils virtuels** (D27), pièces (*areas*), personnes HA vers utilisateurs Gladys, intégrations de type « service » (météo, calendriers, notifications…), rattachement aux intégrations Gladys | V1 |
 | **Lot 1 bis — Historiques** | Historique des valeurs des appareils migrés (voir § 9 ter) | V1 |
 | **Lot 1 ter — Scènes HA** | Instantanés d'états (« ambiances ») convertis en scènes Gladys sans déclencheur (D25) | V1 |
 | **Lot 1 quater — Automatisations simples** | Automatisations HA simples (déclencheurs horaires et solaires, mouvement et ouverture, actions de base) converties en scènes Gladys (D26) | V1 |
@@ -121,6 +121,7 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D24 | Historiques : **tout l'historique** est importé, sans limite de profondeur. Avant l'import, l'outil **estime le volume** nécessaire et le compare à **l'espace disque disponible**. Il avertit l'utilisateur, ou bloque l'import, si la place manque. | Cadrage du 2026-11-17 (ex-Q17) |
 | D25 | Les **scènes HA** (instantanés d'états, sans déclencheur) sont migrées **dès la V1**, en scènes Gladys sans déclencheur lancées à la main. La conversion des **automatisations** reste au lot 2 (V2). Voir 04 § 8 bis. | Cadrage du 2026-11-17 |
 | D26 | **Migrer tout ce qui est migrable, sans que cela devienne un casse-tête pour l'utilisateur.** La V1 convertit les scènes HA (D25) et les **automatisations simples** : déclencheurs horaires et solaires, mouvement ou ouverture détectés, conditions simples, actions de base (04 § 2.4). Les automatisations plus élaborées relèvent d'un **assistant de migration des automatisations distinct** (V2), car le fonctionnement des deux moteurs diffère profondément. Les automatisations non converties sont présentées sous une forme lisible, pour que l'utilisateur les recrée lui-même : c'est aussi sa porte d'entrée dans les scènes de Gladys. | Cadrage du 2026-11-18 |
+| D27 | Les **entrées HA** (*helpers* : `input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en **appareils virtuels** Gladys, avec les appareils. Plus généralement, le convertisseur cherche un **substitut** (appareil existant désigné par l'utilisateur, appareil virtuel, intégration) à toute entité HA sans équivalent dans le cœur (04 § 6). | Cadrage du 2026-11-18 |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 

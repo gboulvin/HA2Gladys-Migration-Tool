@@ -272,6 +272,19 @@ Elles ne portent pas d'appareils à rapprocher (`entry_type: service` côté HA)
 
 Le niveau 2 du catalogue décrit le préremplissage (`config`) de la même façon que pour les intégrations d'appareils. Une intégration de service sans `config` est simplement **installée**, l'utilisateur la configurant lui-même.
 
+## 7 bis. Entrées HA → appareils virtuels (D27)
+
+Les entrées HA (*helpers*) ne sont rattachées à aucune intégration matérielle : elles sont migrées en **appareils virtuels MQTT** de Gladys, sans rapprochement.
+
+| Entrée HA | Fonction Gladys |
+|---|---|
+| `input_boolean` | Interrupteur (binaire) |
+| `input_number` | Numérique, mêmes min, max, pas et unité |
+| `counter` | Numérique entière |
+| `input_select`, `input_text`, `input_datetime`, `timer`, `schedule` | Non migrées en V1 (❌, avec la raison) |
+
+Nom et pièce : ceux de l'entrée HA. Valeur initiale : son état actuel. Prérequis : service MQTT de Gladys configuré. Détail et vérifications restantes : 04 § 6.2.
+
 ## 8. Statuts produits par l'analyseur
 
 Correspondance avec la vision (§ 8) :
