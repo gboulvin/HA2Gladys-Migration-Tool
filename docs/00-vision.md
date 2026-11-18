@@ -124,6 +124,7 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D27 | Les **entrées HA** (*helpers* : `input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en **appareils virtuels** Gladys, avec les appareils. Plus généralement, le convertisseur cherche un **substitut** (appareil existant désigné par l'utilisateur, appareil virtuel, intégration) à toute entité HA sans équivalent dans le cœur (04 § 6). | Cadrage du 2026-11-18 |
 | D28 | **Tableaux de bord dès la V1** : un tableau de bord « Accueil » est généré à partir des données migrées, pour que l'utilisateur ne découvre jamais une page vide. Les tableaux de bord HA peuvent en plus être repris de façon approchée (08). | Cadrage du 2026-11-18 |
 | D29 | **Modules complémentaires HA (*add-ons*) dès la V1** : chacun est associé, via le catalogue, à un service natif de Gladys, à une intégration externe, ou signalé « sans objet » ou « sans équivalent ». Leurs données ne sont pas reprises, sauf celles de Zigbee2MQTT (A11). Voir 03 § 7 ter. | Cadrage du 2026-11-18 |
+| D30 | La **présence** passe en **V1** (revient sur M2) : traqueurs réseau et Bluetooth rapprochés par MAC et rattachés aux utilisateurs, zones HA en zones Gladys, déclencheurs d'arrivée et de départ. Les traqueurs GPS demandent une configuration guidée. Voir 04 § 6.3. | Cadrage du 2026-11-18 |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
