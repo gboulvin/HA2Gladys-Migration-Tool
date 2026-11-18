@@ -83,6 +83,7 @@ Comme les autres écrans de Gladys, les réponses du serveur sont simulées avec
 | Choix | Préfixe d'étage, conflits de noms, champs obligatoires des personnes |
 | Intégrations | Cases à cocher, secrets masqués avec accord individuel, état « À configurer » |
 | Appareils | Confirmation groupée des rapprochements probables, choix entre plusieurs candidats, réappairage qui se coche au fil des découvertes (événements WebSocket simulés) |
+| Scènes HA | Aperçu des actions, scène partielle (liste de ce qui manque), scène bloquée par un appareil, conflit de nom |
 | Historiques | Jauge verte, orange et rouge, décochage avec recalcul |
 | Paramètres → Migration | Reprendre, relancer, annuler avec confirmation renforcée |
 | **Mobile** | Les mêmes parcours en fenêtre de téléphone (390 px), comme les tests mobiles existants de Gladys |
