@@ -34,6 +34,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 |---|---|---|
 | **Lot 1 — Appareils** | Appareils et entités HA, **entrées HA en appareils virtuels** (D27), pièces (*areas*), personnes HA vers utilisateurs Gladys, intégrations de type « service » (météo, calendriers, notifications…), rattachement aux intégrations Gladys | V1 |
 | **Lot 1 bis — Historiques** | Historique des valeurs des appareils migrés (voir § 9 ter) | V1 |
+| **Lot 1 bis — Tableaux de bord et modules** | Tableau de bord « Accueil » généré, reprise approchée des tableaux de bord HA (D28). Modules complémentaires HA associés à leurs équivalents Gladys (D29). | V1 |
 | **Lot 1 ter — Scènes HA** | Instantanés d'états (« ambiances ») convertis en scènes Gladys sans déclencheur (D25) | V1 |
 | **Lot 1 quater — Automatisations simples** | Automatisations HA simples (déclencheurs horaires et solaires, mouvement et ouverture, actions de base) converties en scènes Gladys (D26) | V1 |
 | **Lot 2 — Assistant de migration des automatisations** | Outil distinct, pour les automatisations plus élaborées, au fil des évolutions du moteur de scènes de Gladys (D26) | V2 |
@@ -41,6 +42,8 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 
 ### 4.2 Hors périmètre (pour l'instant)
 
+- Données internes des modules complémentaires (*add-ons*), sauf Zigbee2MQTT (A11).
+- Scripts HA appelés de façon autonome (à réévaluer au lot 2 : un script appelé par une automatisation pourrait être « déplié » dans la scène).
 - Tableaux de bord (*dashboards* Lovelace).
 - Modules complémentaires (*add-ons*) et leur configuration.
 - Scripts HA à paramètres ou complexes (assistant V2) ; les scripts simples sont en V1 (D31).
@@ -122,6 +125,8 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D25 | Les **scènes HA** (instantanés d'états, sans déclencheur) sont migrées **dès la V1**, en scènes Gladys sans déclencheur lancées à la main. La conversion des **automatisations** reste au lot 2 (V2). Voir 04 § 8 bis. | Cadrage du 2026-11-17 |
 | D26 | **Migrer tout ce qui est migrable, sans que cela devienne un casse-tête pour l'utilisateur.** La V1 convertit les scènes HA (D25) et les **automatisations simples** : déclencheurs horaires et solaires, mouvement ou ouverture détectés, conditions simples, actions de base (04 § 2.4). Les automatisations plus élaborées relèvent d'un **assistant de migration des automatisations distinct** (V2), car le fonctionnement des deux moteurs diffère profondément. Les automatisations non converties sont présentées sous une forme lisible, pour que l'utilisateur les recrée lui-même : c'est aussi sa porte d'entrée dans les scènes de Gladys. | Cadrage du 2026-11-18 |
 | D27 | Les **entrées HA** (*helpers* : `input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en **appareils virtuels** Gladys, avec les appareils. Plus généralement, le convertisseur cherche un **substitut** (appareil existant désigné par l'utilisateur, appareil virtuel, intégration) à toute entité HA sans équivalent dans le cœur (04 § 6). | Cadrage du 2026-11-18 |
+| D28 | **Tableaux de bord dès la V1** : un tableau de bord « Accueil » est généré à partir des données migrées, pour que l'utilisateur ne découvre jamais une page vide. Les tableaux de bord HA peuvent en plus être repris de façon approchée (08). | Cadrage du 2026-11-18 |
+| D29 | **Modules complémentaires HA (*add-ons*) dès la V1** : chacun est associé, via le catalogue, à un service natif de Gladys, à une intégration externe, ou signalé « sans objet » ou « sans équivalent ». Leurs données ne sont pas reprises, sauf celles de Zigbee2MQTT (A11). Voir 03 § 7 ter. | Cadrage du 2026-11-18 |
 | D30 | La **présence** passe en **V1** (revient sur M2) : traqueurs réseau et Bluetooth rapprochés par MAC et rattachés aux utilisateurs, zones HA en zones Gladys, déclencheurs d'arrivée et de départ. Les traqueurs GPS demandent une configuration guidée. Voir 04 § 6.3. | Cadrage du 2026-11-18 |
 | D31 | Les **scripts HA simples** (sans paramètres, actions du socle V1, attentes fixes comprises) sont migrés **dès la V1** en scènes Gladys sans déclencheur. Les automatisations qui les appellent deviennent ainsi convertibles. Voir 04 § 8 ter. | Cadrage du 2026-11-18 |
 

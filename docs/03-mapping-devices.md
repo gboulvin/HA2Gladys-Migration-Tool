@@ -285,6 +285,23 @@ Les entrées HA (*helpers*) ne sont rattachées à aucune intégration matériel
 
 Nom et pièce : ceux de l'entrée HA. Valeur initiale : son état actuel. Prérequis : service MQTT de Gladys configuré. Détail et vérifications restantes : 04 § 6.2.
 
+## 7 ter. Modules complémentaires HA (*add-ons*) (D29)
+
+Les modules complémentaires sont des **conteneurs** gérés par le Supervisor de HA (installations HA OS et Supervised). Ce ne sont ni des appareils, ni des intégrations. Leurs équivalents Gladys sont les **services natifs qui installent leur conteneur** et les **intégrations externes**, qui peuvent déclarer des sous-conteneurs dans leur manifeste.
+
+Le catalogue (niveau 1) reçoit une table **`addons`** : slug du module HA → équivalent.
+
+| Catégorie | Exemples | Traitement par l'outil |
+|---|---|---|
+| **Équivalent natif** | Mosquitto → service MQTT, Zigbee2MQTT → service zigbee2mqtt, Node-RED → service node-red | Proposé à la phase « Intégrations » (05, écran 5). Gladys installe son propre conteneur. Données reprises pour Zigbee2MQTT seulement, en bascule (A11). |
+| **Équivalent externe** | Frigate, ESPHome… | Installation de l'intégration du store, comme pour les appareils |
+| **Sans objet** | Éditeur de fichiers, Samba, SSH, MariaDB, Studio Code Server | ⏭️ « Non nécessaire avec Gladys », avec l'explication |
+| **Sans équivalent** | Les autres | ❌, parcours D15 |
+
+- **Source** : `backup.json` de la sauvegarde (liste `addons`), ou par l'API via la commande WebSocket `supervisor/api`, relais vers l'API du Supervisor ([core] `components/hassio/websocket_api.py`). *Points d'accès autorisés et droits à vérifier.* Une installation sans Supervisor (Container, Core) n'a pas de modules : la section est absente du rapport.
+- **Données non reprises** : la configuration et les données des modules restent propres à HA. Les flux Node-RED, par exemple, utilisent des nœuds spécifiques à HA et ne fonctionneraient pas tels quels. Le rapport le dit, module par module.
+- **Coexistence** : si le module tourne encore (Mosquitto, Zigbee2MQTT), Gladys peut s'y connecter plutôt que d'installer le sien. C'est le cas déjà prévu pour Zigbee2MQTT (01 § 9.3). L'outil le propose quand c'est possible.
+
 ## 8. Statuts produits par l'analyseur
 
 Correspondance avec la vision (§ 8) :
