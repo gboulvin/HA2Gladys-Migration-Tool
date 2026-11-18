@@ -20,7 +20,7 @@ Gladys **supprime chaque jour** les états plus anciens que la durée de conserv
 
 **Règle (H1)** :
 1. Avant l'import, l'outil compare la date du plus ancien point à importer à la durée de conservation.
-2. Si elle la dépasse, l'utilisateur choisit sur l'écran 7 (05) :
+2. Si elle la dépasse, l'utilisateur choisit sur l'écran 8 (05) :
    - **passer la conservation à « illimitée »** (choix par défaut, puisque D24 demande de tout garder ; H1) ;
    - ou l'**allonger** jusqu'à couvrir l'historique importé ;
    - ou **garder son réglage**. Les points trop anciens ne sont alors **pas importés**, plutôt qu'importés puis purgés : on évite une écriture inutile.
@@ -104,7 +104,7 @@ Côté Gladys, une fonction d'index alimente, par le service `energy-monitoring`
 1. **Comptage** des points par fonction, selon la source (02 § 5.3) : `COUNT` SQL sur la base de la sauvegarde, `recorder/database_usage` (HA ≥ 2026.12) ou estimation par les bornes des statistiques.
 2. **Volume disque** = nombre de points × coût moyen par point dans DuckDB. Ce coût n'est **pas supposé** : il est mesuré une fois, sur un jeu de test, puis gravé dans le code et revu à chaque évolution de DuckDB.
 3. **Durée** = nombre de points ÷ débit d'insertion mesuré, affichée comme un ordre de grandeur (« environ 20 minutes »).
-4. **Comparaison** à l'espace libre (`system.getDiskSpace`), avec une **marge** : 20 % de l'espace libre restant après l'import, et au moins 1 Go. Jauge verte, orange ou rouge (05, écran 7).
+4. **Comparaison** à l'espace libre (`system.getDiskSpace`), avec une **marge** : 20 % de l'espace libre restant après l'import, et au moins 1 Go. Jauge verte, orange ou rouge (05, écran 8).
 
 Le résultat est présenté **par appareil**, trié du plus volumineux au plus léger. L'utilisateur peut ainsi décocher les plus gros s'il manque de place.
 
