@@ -71,11 +71,11 @@ Cet ordre évite de laisser croire qu'une automatisation à template deviendra c
 |---|---|
 | **Déclencheurs** | Heure fixe, avec ou sans jours de la semaine. Lever et coucher du soleil, avec un décalage qui reste dans la journée. **Changement d'état d'un capteur binaire** (mouvement, ouverture, présence d'eau…), avec ou sans durée (« sans mouvement depuis 5 minutes »). Seuil simple sur une mesure (température, humidité…), avec ou sans durée. |
 | **Conditions** | Plage horaire et jours de la semaine. État simple d'un appareil ou seuil simple. Plusieurs conditions **combinées en ET** uniquement. |
-| **Actions** | Commander un appareil : marche/arrêt, luminosité, position d'un volet, consigne de température. Lancer une scène HA migrée. Notification à **texte fixe**. |
+| **Actions** | Commander un appareil : marche/arrêt, luminosité, position d'un volet, consigne de température. Lancer une scène HA ou un **script** HA migrés (§ 8 ter). Notification à **texte fixe**. |
 | **Motif reconnu** | **Lumière sur détection de mouvement avec extinction après un délai**, réécrite en deux scènes (§ 5) |
 | **Mode d'exécution** | Séquence sans attente uniquement (§ 3.4) |
 
-**Exclu de la V1**, et donc présenté pour une recréation manuelle : `delay` et attentes hors du motif reconnu, `if`/`choose`/`repeat`/`parallel`, conditions OU/NON, déclencheurs MQTT, d'événement et de bouton, scripts, templates, présence.
+**Exclu de la V1**, et donc présenté pour une recréation manuelle : `delay` et attentes hors du motif reconnu, `if`/`choose`/`repeat`/`parallel`, conditions OU/NON, déclencheurs MQTT, d'événement et de bouton, scripts **non simples** (§ 8 ter), templates.
 
 Ce socle couvre la majorité des automatisations courantes (§ 8). Il réutilise **les mêmes briques** que la conversion des scènes HA (tables de valeurs, `device.set-value`), et il est testé ligne par ligne comme le reste (§ 9).
 
@@ -139,7 +139,7 @@ La table complète est dans la note de recherche (S § 4). Voici les règles qui
 | `delay` fixe : `delay`. `wait_template`, `wait_for_trigger` : refus | Pas d'attente d'événement dans Gladys |
 | `repeat` avec un nombre fixe et raisonnable : actions **dépliées**. `while`, `until` : refus | `condition.while` a un plafond d'itérations et un minimum de 100 ms par tour |
 | `notify` à texte fixe : `message.send`, après **confirmation** de la correspondance « service HA → utilisateur et canal Gladys » | Les services de notification n'ont pas d'équivalent automatique |
-| Appel d'un **script** HA : contenu **déplié** dans la scène, si le script est lui-même convertible | Gladys n'a pas de script. Le mode propre du script est perdu, cela relève du § 3.4. |
+| Appel d'un **script** HA : `scene.start` vers la scène issue du script (§ 8 ter), en **dernière** position. Si l'appel n'est pas en dernière position et que le script est court et sans attente, son contenu est **déplié** dans la scène appelante. | Gladys n'attend pas la fin d'une scène lancée par `scene.start`, alors que HA attend la fin d'un script appelé directement. |
 | Activation d'une **scène HA** (`scene.turn_on`) : actions `device.set-value` en parallèle, reproduisant les états de la scène | Si chaque état est convertible (Q04-3) |
 | `automation.trigger` / `script.turn_on` : `scene.start`, **en dernière position** | Gladys n'attend pas la scène lancée. Pour `automation.trigger`, la cible ne doit pas avoir de condition, puisque HA les ignore par défaut. |
 
@@ -332,6 +332,26 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 
 **Conséquence sur la V1** : les **tables de valeurs et d'attributs** du catalogue (§ 4) passent en V1, pour le sous-ensemble ci-dessus. Elles servent aussi aux automatisations simples (§ 2.4).
 
+## 8 ter. Scripts HA simples — V1 (S11)
+
+**Ce qu'est un script HA** : une **suite d'actions nommée, sans déclencheur**, avec la même syntaxe que la partie « actions » d'une automatisation. On le lance à la main (bouton, assistant vocal), depuis une automatisation ou depuis un autre script. Il peut avoir des **paramètres** (`fields`) et un **mode d'exécution**.
+
+**Équivalent Gladys** : une **scène sans déclencheur**, comme pour les scènes HA (§ 8 bis), lancée à la main ou par `scene.start`.
+
+| Point | Règle |
+|---|---|
+| **Source** | Mode A et B : WebSocket `script/config` (administrateur). Mode C : `scripts.yaml` (02, R § 1.6). |
+| **Périmètre V1** | Scripts **sans paramètres** (`fields`), dont toutes les actions sont dans la liste blanche du socle (§ 2.4), **attentes fixes (`delay`) comprises** |
+| **Attentes et mode** | Un script n'est lancé qu'à la main ou par un appel : deux exécutions simultanées ne surviennent que sur un double appel. C'est un écart **affiché**, pas un refus (S1). |
+| **Activation** | Scène créée **active** dans les deux modes : sans déclencheur, elle ne se lance jamais seule. |
+| **Appels** | Une automatisation ou un script qui appelle un script migré utilise `scene.start` (§ 3.3). C'est ce qui rend convertibles les nombreuses automatisations qui se contentent d'appeler un script. |
+| **Hors V1** | Scripts à paramètres, avec templates, `choose`, `repeat`, `wait_for_trigger` : **fiche lisible** et brouillon (§ 2.5), puis assistant V2 (§ 2.6) |
+| **Tableau de bord** | Les scripts migrés figurent, comme les scènes HA, dans la section « Ambiances » de l'Accueil (08) |
+
+**Scripts à paramètres, pistes pour l'assistant V2.** Gladys n'a pas de scène paramétrée, mais deux techniques s'en approchent :
+1. **Appareil virtuel servant de variable**, une pratique courante chez les utilisateurs de Gladys. L'appelant écrit la valeur dans une fonction de l'appareil virtuel, puis lance la scène, qui la lit. C'est simple et visible dans l'interface. En revanche, deux appels simultanés s'écrasent mutuellement la valeur.
+2. **Portée transmise par `scene.start`** : la scène lancée reçoit une **copie** de la portée de la scène appelante (`server/lib/scene/scene.actions.js`, action `scene.start`), y compris les valeurs posées par `variable.set`. Il n'y a pas de conflit entre appels simultanés. Mais les valeurs sont repérées par leur **position** dans la scène appelante (`{{colonne.ligne.value}}`), ce qui demande une convention stricte entre l'appelant et la scène appelée. *À expérimenter.*
+
 ## 9. Tests
 
 En complément de 06 :
@@ -345,6 +365,7 @@ En complément de 06 :
 |---|---|
 | S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
 | S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S11 | Les **scripts HA simples** (sans paramètres, actions du socle, attentes fixes comprises) sont migrés **dès la V1** en scènes sans déclencheur (§ 8 ter, D31). |
 | S10 | La **présence** passe en **V1** (§ 6.3, D30) : traqueurs réseau et Bluetooth rapprochés par MAC, zones, déclencheurs d'arrivée et de départ, conditions de maison vide ou occupée. |
 | S9 | Les **entrées HA** (`input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en appareils virtuels (§ 6.2, D27). |
 | S8 | Le convertisseur cherche un **substitut** (appareil existant, appareil virtuel, intégration) à toute entité HA qui n'a pas d'équivalent dans le cœur, avant de refuser (§ 6.1). |

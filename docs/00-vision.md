@@ -44,6 +44,9 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 
 - Données internes des modules complémentaires (*add-ons*), sauf Zigbee2MQTT (A11).
 - Scripts HA appelés de façon autonome (à réévaluer au lot 2 : un script appelé par une automatisation pourrait être « déplié » dans la scène).
+- Tableaux de bord (*dashboards* Lovelace).
+- Modules complémentaires (*add-ons*) et leur configuration.
+- Scripts HA à paramètres ou complexes (assistant V2) ; les scripts simples sont en V1 (D31).
 - Synchronisation continue : l'import est une opération ponctuelle. L'utilisateur peut le relancer pour récupérer les nouveautés de HA, mais il n'y a pas de miroir permanent (voir D13).
 
 ## 5. Principes directeurs
@@ -125,6 +128,7 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D28 | **Tableaux de bord dès la V1** : un tableau de bord « Accueil » est généré à partir des données migrées, pour que l'utilisateur ne découvre jamais une page vide. Les tableaux de bord HA peuvent en plus être repris de façon approchée (08). | Cadrage du 2026-11-18 |
 | D29 | **Modules complémentaires HA (*add-ons*) dès la V1** : chacun est associé, via le catalogue, à un service natif de Gladys, à une intégration externe, ou signalé « sans objet » ou « sans équivalent ». Leurs données ne sont pas reprises, sauf celles de Zigbee2MQTT (A11). Voir 03 § 7 ter. | Cadrage du 2026-11-18 |
 | D30 | La **présence** passe en **V1** (revient sur M2) : traqueurs réseau et Bluetooth rapprochés par MAC et rattachés aux utilisateurs, zones HA en zones Gladys, déclencheurs d'arrivée et de départ. Les traqueurs GPS demandent une configuration guidée. Voir 04 § 6.3. | Cadrage du 2026-11-18 |
+| D31 | Les **scripts HA simples** (sans paramètres, actions du socle V1, attentes fixes comprises) sont migrés **dès la V1** en scènes Gladys sans déclencheur. Les automatisations qui les appellent deviennent ainsi convertibles. Voir 04 § 8 ter. | Cadrage du 2026-11-18 |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
