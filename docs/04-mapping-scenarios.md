@@ -1,4 +1,4 @@
-# 04 — Conversion des automatisations en scènes (lot 2)
+# 04 — Conversion des scènes et automatisations
 
 - **Statut** : 📝 Brouillon
 - **Dernière mise à jour** : 2026-11-17
@@ -58,6 +58,46 @@ L'utilisateur sait ainsi exactement quoi refaire.
 3. Sinon : ✅ **convertible**, avec la liste des écarts acceptés (§ 2.1).
 
 Cet ordre évite de laisser croire qu'une automatisation à template deviendra convertible une fois ses appareils migrés.
+
+### 2.4 Périmètre V1 : les automatisations simples (S5)
+
+**Principe (D26)** : migrer tout ce qui est migrable **sans que cela devienne un casse-tête pour l'utilisateur**. La V1 convertit donc un **socle d'automatisations simples**, dont le résultat se comprend au premier coup d'œil dans l'éditeur de scènes de Gladys. Tout le reste est présenté de façon lisible, pour que l'utilisateur le recrée lui-même (§ 2.5). Les automatisations élaborées relèvent d'un **assistant distinct** (§ 2.6).
+
+| | Accepté en V1 |
+|---|---|
+| **Déclencheurs** | Heure fixe, avec ou sans jours de la semaine. Lever et coucher du soleil, avec un décalage qui reste dans la journée. **Changement d'état d'un capteur binaire** (mouvement, ouverture, présence d'eau…), avec ou sans durée (« sans mouvement depuis 5 minutes »). Seuil simple sur une mesure (température, humidité…), avec ou sans durée. |
+| **Conditions** | Plage horaire et jours de la semaine. État simple d'un appareil ou seuil simple. Plusieurs conditions **combinées en ET** uniquement. |
+| **Actions** | Commander un appareil : marche/arrêt, luminosité, position d'un volet, consigne de température. Lancer une scène HA migrée. Notification à **texte fixe**. |
+| **Motif reconnu** | **Lumière sur détection de mouvement avec extinction après un délai**, réécrite en deux scènes (§ 5) |
+| **Mode d'exécution** | Séquence sans attente uniquement (§ 3.4) |
+
+**Exclu de la V1**, et donc présenté pour une recréation manuelle : `delay` et attentes hors du motif reconnu, `if`/`choose`/`repeat`/`parallel`, conditions OU/NON, déclencheurs MQTT, d'événement et de bouton, scripts, templates, présence.
+
+Ce socle couvre la majorité des automatisations courantes (§ 8). Il réutilise **les mêmes briques** que la conversion des scènes HA (tables de valeurs, `device.set-value`), et il est testé ligne par ligne comme le reste (§ 9).
+
+### 2.5 Automatisations non converties : aide à la recréation (S6)
+
+Une automatisation non convertie n'est pas une impasse. C'est l'occasion, pour l'utilisateur, de **découvrir l'éditeur de scènes de Gladys**. Pour chacune, le rapport affiche une **fiche lisible** :
+
+> **Volets du salon le soir** — *à recréer*
+> - **Quand** : coucher du soleil
+> - **Si** : quelqu'un est à la maison *(présence, non migrée)*
+> - **Alors** : fermer « Volet salon » (Salon), attendre 10 minutes, éteindre « Lampe salon »
+> - **Pourquoi elle n'a pas été convertie** : condition de présence
+> - Bouton **« Créer cette scène dans Gladys »** : ouvre l'éditeur avec un brouillon prérempli de tout ce qui est convertible (déclencheur, actions). L'utilisateur complète le reste.
+
+- Les éléments sont décrits avec les **noms Gladys** des appareils migrés, pas avec les identifiants HA.
+- La fiche est produite à partir des mêmes tables que la conversion : les éléments connus sont formulés en clair, les autres sont cités tels quels (« template », « script `xyz` »).
+- Le **brouillon prérempli** n'est jamais enregistré ni activé sans l'action de l'utilisateur.
+
+### 2.6 Assistant de migration des automatisations (V2, S7)
+
+Les automatisations élaborées feront l'objet d'un **assistant distinct**, lancé depuis **Paramètres → Migration** une fois la migration de base faite. Ce choix se justifie ainsi :
+- le fonctionnement des automatisations HA et des scènes Gladys diffère profondément (§ 1). L'assistant évoluera au rythme du **moteur de scènes de Gladys** (pistes du § 6, notamment les modes d'exécution) ;
+- il **réutilise** les fondations de la V1 : inventaire, journal, catalogue, liste blanche, fiches lisibles. Il ne fait qu'élargir la liste blanche et ajouter des réécritures de motifs ;
+- la migration de base reste **simple et rapide**. L'utilisateur prend la main sur Gladys avec ses fonctionnements essentiels, puis peaufine à son rythme.
+
+Le reste de cette section (§ 3 à § 7) décrit l'**ensemble** des règles de conversion. La V1 en applique le sous-ensemble du § 2.4, et l'assistant V2 l'étendra.
 
 ## 3. Règles de traduction essentielles
 
@@ -211,7 +251,7 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 | **Nom et étiquette** | Nom de la scène HA, étiquette « Home Assistant » (§ 7) |
 | **Appel depuis une automatisation (lot 2)** | Les actions de la scène sont recopiées dans la scène Gladys appelante (§ 3.3), ou bien la scène importée est lancée par `scene.start` en dernière position. *Choix à faire au lot 2.* |
 
-**Conséquence sur la V1** : les **tables de valeurs et d'attributs** du catalogue (§ 4) passent en V1, pour le sous-ensemble ci-dessus. La conversion des **automatisations** reste en V2.
+**Conséquence sur la V1** : les **tables de valeurs et d'attributs** du catalogue (§ 4) passent en V1, pour le sous-ensemble ci-dessus. Elles servent aussi aux automatisations simples (§ 2.4).
 
 ## 9. Tests
 
@@ -226,6 +266,9 @@ En complément de 06 :
 |---|---|
 | S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
 | S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S5 | **V1** : scènes HA et **automatisations simples** (§ 2.4), dont le motif « lumière sur mouvement » (D26). |
+| S6 | Les automatisations non converties sont présentées sous forme de **fiche lisible**, avec un brouillon de scène prérempli (§ 2.5). |
+| S7 | Les automatisations élaborées relèvent d'un **assistant distinct** (V2), qui réutilise les fondations de la V1 (§ 2.6). |
 | S4 | Les **scènes HA** (instantanés d'états) sont migrées **dès la V1**, en scènes Gladys sans déclencheur (§ 8 bis, ex-Q04-3). |
 | S3 | Les pistes d'évolution du cœur (§ 6) sont suivies dans le **fil du forum** du projet. Le bogue P3 (déclencheur MQTT avec joker) fait l'objet d'un **ticket** sur `GladysAssistant/Gladys` (ex-Q04-4). |
 
