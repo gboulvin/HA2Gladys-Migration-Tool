@@ -6,7 +6,7 @@
 | 01 | [Architecture](01-architecture.md) | Forme du service Gladys, composants, flux, sécurité | 📝 Brouillon |
 | 02 | [Lecture des données HA](02-extraction-ha.md) | Lecture des données HA (API et sauvegarde) | 📝 Brouillon |
 | 03 | [Correspondances](03-mapping-devices.md) | Catalogue, rapprochement des appareils, pièces, personnes, services | 📝 Brouillon |
-| 04 | `04-mapping-scenarios.md` | Automatisations HA → scènes Gladys | ⏳ À rédiger |
+| 04 | [Scènes](04-mapping-scenarios.md) | Automatisations HA → scènes Gladys (lot 2) | 📝 Brouillon |
 | 05 | [Parcours utilisateur](05-ux.md) | Parcours utilisateur, écrans, rapport de migration | 📝 Brouillon |
 | 06 | [Tests](06-tests.md) | Stratégie de test, jeux de données | 📝 Brouillon |
 | 07 | [Historiques](07-historiques.md) | Import des historiques de données HA | 📝 Brouillon |
@@ -15,6 +15,7 @@
 | — | [`research/ha-integrations-usage.md`](research/ha-integrations-usage.md) | Note de recherche : intégrations HA les plus utilisées | 📚 Référence |
 | — | [`research/ha-data-sources.md`](research/ha-data-sources.md) | Note de recherche : sources de données HA (API, sauvegardes, recorder) | 📚 Référence |
 | — | [`research/matching-keys.md`](research/matching-keys.md) | Note de recherche : clés de rapprochement des 12 intégrations V1 | 📚 Référence |
+| — | [`research/scene-mapping.md`](research/scene-mapping.md) | Note de recherche : correspondance automatisations HA → scènes Gladys | 📚 Référence |
 
 ## Légende des statuts
 

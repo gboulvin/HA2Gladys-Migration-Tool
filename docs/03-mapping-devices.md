@@ -255,7 +255,7 @@ Synthèse de K § 1 :
 | Personne sans utilisateur HA | `role: habitant` | |
 | — | **`email`, `password` (8 caractères minimum), `birthdate`, `language`** | **Obligatoires dans Gladys et absents de HA** : à saisir pour chaque personne retenue |
 | Photo | `picture` | Si présente dans la sauvegarde, après accord |
-| `device_trackers` | — | Présence : **V2** (M2) |
+| `device_trackers` | Capteurs de présence rattachés à l'utilisateur | Présence en **V1** (D30, 04 § 6.3) |
 
 - Les mots de passe HA ne sont **jamais** repris : ils sont hachés, et l'outil ne lit pas ces fichiers (02 § 4.2).
 - La personne qui fait la migration est déjà un utilisateur Gladys (administrateur). L'outil propose de la **rapprocher** de sa personne HA plutôt que d'en créer une deuxième.
@@ -271,6 +271,19 @@ Elles ne portent pas d'appareils à rapprocher (`entry_type: service` côté HA)
 | Notifications (Telegram, ntfy, Pushover…) | Installation, et jeton si présent dans la sauvegarde (secret, avec accord) |
 
 Le niveau 2 du catalogue décrit le préremplissage (`config`) de la même façon que pour les intégrations d'appareils. Une intégration de service sans `config` est simplement **installée**, l'utilisateur la configurant lui-même.
+
+## 7 bis. Entrées HA → appareils virtuels (D27)
+
+Les entrées HA (*helpers*) ne sont rattachées à aucune intégration matérielle : elles sont migrées en **appareils virtuels MQTT** de Gladys, sans rapprochement.
+
+| Entrée HA | Fonction Gladys |
+|---|---|
+| `input_boolean` | Interrupteur (binaire) |
+| `input_number` | Numérique, mêmes min, max, pas et unité |
+| `counter` | Numérique entière |
+| `input_select`, `input_text`, `input_datetime`, `timer`, `schedule` | Non migrées en V1 (❌, avec la raison) |
+
+Nom et pièce : ceux de l'entrée HA. Valeur initiale : son état actuel. Prérequis : service MQTT de Gladys configuré. Détail et vérifications restantes : 04 § 6.2.
 
 ## 8. Statuts produits par l'analyseur
 
@@ -302,7 +315,7 @@ Pour ZHA → Zigbee2MQTT et pour Matter, il faut appairer de nouveau les apparei
 | # | Décision |
 |---|---|
 | M1 | `gladys-migration.json` est retenu comme nom du fichier de niveau 2. **Toutes** les intégrations sont appelées à adopter la migration, au moment des mises à jour imposées par les nouvelles versions du SDK. Proposition associée : identité matérielle publiée dans des params réservés `GLADYS_HW_*`, via le SDK et illustrée par le modèle (§ 2.4), ce qui rend le fichier facultatif. *À discuter avec William et Pierre-Gilles avant de figer (ex-Q03-1).* |
-| M2 | Présence (`device_trackers`) en **V2**. Les **utilisateurs** restent en **V1** (ex-Q03-2). |
+| M2 | ~~Présence en V2~~ : **remplacée par D30**, la présence passe en V1. Les **utilisateurs** restent en **V1**. |
 | M3 | Réappairage (ZHA, Matter) avec **rapprochement automatique au fil de l'eau** et validation groupée des seuls cas ambigus (§ 9, ex-Q03-3). |
 
 ## 11. Questions ouvertes
