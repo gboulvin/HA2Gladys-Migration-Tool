@@ -43,7 +43,7 @@ Fournir dans Gladys un **service d'import depuis Home Assistant**. Il doit perme
 
 - Tableaux de bord (*dashboards* Lovelace).
 - Modules complémentaires (*add-ons*) et leur configuration.
-- Scripts HA appelés de façon autonome (à réévaluer au lot 2 : un script appelé par une automatisation pourrait être « déplié » dans la scène).
+- Scripts HA à paramètres ou complexes (assistant V2) ; les scripts simples sont en V1 (D31).
 - Synchronisation continue : l'import est une opération ponctuelle. L'utilisateur peut le relancer pour récupérer les nouveautés de HA, mais il n'y a pas de miroir permanent (voir D13).
 
 ## 5. Principes directeurs
@@ -123,6 +123,7 @@ L'utilisateur peut quitter l'outil après la phase B, laisser ses intégrations 
 | D26 | **Migrer tout ce qui est migrable, sans que cela devienne un casse-tête pour l'utilisateur.** La V1 convertit les scènes HA (D25) et les **automatisations simples** : déclencheurs horaires et solaires, mouvement ou ouverture détectés, conditions simples, actions de base (04 § 2.4). Les automatisations plus élaborées relèvent d'un **assistant de migration des automatisations distinct** (V2), car le fonctionnement des deux moteurs diffère profondément. Les automatisations non converties sont présentées sous une forme lisible, pour que l'utilisateur les recrée lui-même : c'est aussi sa porte d'entrée dans les scènes de Gladys. | Cadrage du 2026-11-18 |
 | D27 | Les **entrées HA** (*helpers* : `input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en **appareils virtuels** Gladys, avec les appareils. Plus généralement, le convertisseur cherche un **substitut** (appareil existant désigné par l'utilisateur, appareil virtuel, intégration) à toute entité HA sans équivalent dans le cœur (04 § 6). | Cadrage du 2026-11-18 |
 | D30 | La **présence** passe en **V1** (revient sur M2) : traqueurs réseau et Bluetooth rapprochés par MAC et rattachés aux utilisateurs, zones HA en zones Gladys, déclencheurs d'arrivée et de départ. Les traqueurs GPS demandent une configuration guidée. Voir 04 § 6.3. | Cadrage du 2026-11-18 |
+| D31 | Les **scripts HA simples** (sans paramètres, actions du socle V1, attentes fixes comprises) sont migrés **dès la V1** en scènes Gladys sans déclencheur. Les automatisations qui les appellent deviennent ainsi convertibles. Voir 04 § 8 ter. | Cadrage du 2026-11-18 |
 
 Ces décisions seront formalisées en ADR dans `decisions/` au fil de la rédaction des sections concernées.
 
