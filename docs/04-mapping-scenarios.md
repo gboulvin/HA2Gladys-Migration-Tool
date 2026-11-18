@@ -12,14 +12,19 @@
 Trois constats obligent à préciser D5 (« fidélité à 100 %, sinon à refaire manuellement ») :
 
 1. **Deux écarts touchent presque toutes les automatisations** (S § 4.0) :
-   - **E1, indisponibilité** : HA connaît les états `unavailable` et `unknown`. Une condition y devient fausse, et un retour `unavailable → on` redéclenche. Gladys garde la dernière valeur connue.
+   - **E1, indisponibilité** : HA passe une entité à `unavailable` **dès** la perte de liaison. Une condition devient alors fausse, et un retour `unavailable → on` redéclenche. Gladys a bien une notion voisine, mais **différente et absente des scènes** :
+     - « **Pas de valeur récente** » : calculée par le serveur (`last_value_is_too_old`, `server/lib/device/device.get.js`), elle signale une valeur plus ancienne qu'un **nombre d'heures** réglable (`DEVICE_STATE_NUMBER_OF_HOURS_BEFORE_STATE_IS_OUTDATED`). C'est une **ancienneté**, pas une perte de liaison immédiate. Elle n'est utilisée que par l'affichage, et aucun déclencheur ni aucune condition de scène ne la lit ;
+     - `GLADYS_TRANSPORT = unreachable` : publié par certaines intégrations externes (pastille sur l'appareil), lui aussi absent des scènes.
+
+     Il n'y a donc pas de correspondance pour les scènes aujourd'hui. Une condition ou un déclencheur « valeur récente / appareil joignable » rapprocherait les deux comportements : voir la piste P7 (§ 6).
    - **E2, erreur d'action** : HA **arrête** la séquence à la première action en erreur. Gladys **journalise et continue**.
 
    Lu à la lettre, D5 interdirait de convertir toute automatisation qui a un déclencheur d'état ou deux actions enchaînées, c'est-à-dire presque toutes.
 2. **Gladys n'a pas de mode d'exécution** : toutes les exécutions d'une scène tournent en parallèle, sans limite (S § 1.4). Le mode `single` de HA, qui est le mode par défaut, n'est reproduit fidèlement que pour une séquence **sans attente**.
 3. **Plusieurs différences fines** rendent impossibles des éléments qui semblaient simples :
    - une `condition` dans une branche arrête **toute** la scène dans Gladys, et seulement la branche dans HA ;
-   - Gladys n'offre ni `wait_for_trigger`, ni **condition** sur le soleil (les **déclencheurs** lever et coucher du soleil, avec décalage, existent bien : § 3.1), ni condition de durée ;
+   - **une scène Gladys ne peut pas se mettre en pause jusqu'à un événement**. C'est ce que fait `wait_for_trigger` dans HA : *au milieu* d'une exécution, attendre par exemple « fin du mouvement », puis **continuer la même exécution**, avec un délai maximal facultatif. Un déclencheur Gladys, lui, **démarre** une scène, il ne la reprend pas. L'équivalent passe donc par **deux scènes** (réécriture de motif, § 5). Les attentes **fixes** (`delay`), elles, existent dans Gladys et sont converties ;
+   - il n'y a pas, **dans le cœur**, de condition sur la position du soleil ni de condition « dans cet état depuis N minutes ». La première se comble par un **appareil** (§ 6.1). Les **déclencheurs** lever et coucher du soleil avec décalage (§ 3.1), les conditions d'heure, de plages horaires, de calendrier, de présence et d'alarme existent bien ;
    - un `time_pattern` `/n` ne peut pas être aligné sur l'horloge ;
    - un déclencheur MQTT avec joker ne se déclenche jamais dans Gladys.
 
@@ -48,7 +53,6 @@ L'utilisateur sait ainsi exactement quoi refaire.
 
 **Refus immédiats**, avant toute analyse détaillée :
 - toute chaîne contenant un **template** Jinja (`{{` ou `{%`), où qu'elle soit ;
-- toute référence à la **présence** (`person`, `zone`, `device_tracker`), qui est en V2 (M2) ;
 - tout déclencheur `event`, `template`, `webhook`, `tag`, `conversation`, `sun` autre que lever et coucher, `time_pattern` en `/n`, MQTT avec joker.
 
 ### 2.3 Ordre d'évaluation et statuts
@@ -81,9 +85,9 @@ Une automatisation non convertie n'est pas une impasse. C'est l'occasion, pour l
 
 > **Volets du salon le soir** — *à recréer*
 > - **Quand** : coucher du soleil
-> - **Si** : quelqu'un est à la maison *(présence, non migrée)*
+> - **Si** : la température extérieure est sous 5 °C *(capteur non migré)*
 > - **Alors** : fermer « Volet salon » (Salon), attendre 10 minutes, éteindre « Lampe salon »
-> - **Pourquoi elle n'a pas été convertie** : condition de présence
+> - **Pourquoi elle n'a pas été convertie** : appareil non migré
 > - Bouton **« Créer un brouillon dans Gladys »** : crée une scène **désactivée**, préremplie de tout ce qui est convertible (déclencheur, actions), et ouvre l'éditeur. L'utilisateur complète le reste, puis active la scène.
 
 - Les éléments sont décrits avec les **noms Gladys** des appareils migrés, pas avec les identifiants HA.
@@ -205,6 +209,7 @@ L'étude fait apparaître des manques dont la correction augmenterait directemen
 | P4 | Condition **solaire** (jour ou nuit, avant ou après le lever ou le coucher) | Motifs d'éclairage très courants. **Déjà comblée en pratique par un appareil** (virtuel ou intégration), § 6.1 : piste de confort seulement. |
 | P5 | Condition de **durée** (« dans cet état depuis N minutes ») | Motifs d'alerte |
 | P6 | **Variable du déclencheur** exposée dans l'éditeur | Automatisations à plusieurs rôles, sans réécriture |
+| P7 | Condition ou déclencheur **« appareil joignable / valeur récente »**, s'appuyant sur `last_value_is_too_old` ou `GLADYS_TRANSPORT` | Rapprocherait le comportement de HA en cas d'indisponibilité (E1), et utile en soi : « alerter si le capteur ne répond plus » |
 
 ### 6.1 Substituts : ce que le cœur ne fournit pas, un appareil peut le fournir (S8)
 
@@ -256,6 +261,27 @@ Les entrées HA sont très présentes dans les automatisations : mode vacances, 
 
 **Décision (S9, D27)** : les entrées HA sont migrées **dès la V1**, avec les appareils (05, écran 6). Cela rend convertibles une grande partie des automatisations « à modes » (vacances, nuit, absence) du socle V1.
 
+### 6.3 Présence (D30)
+
+La présence passe en **V1** : sans elle, une grande partie des automatisations courantes (chauffage, alarme, lumières à l'arrivée) resterait à recréer. Correspondances :
+
+| HA | Gladys | Statut |
+|---|---|---|
+| `person` | Utilisateur (déjà en V1, 03 § 6) | ✅ |
+| `device_tracker` **réseau** (routeur : FRITZ!Box, UniFi, ping, nmap) ou **Bluetooth** | Capteur de présence (`presence-sensor`) du service `lan-manager` ou `bluetooth`, ou d'une intégration du store (FRITZ!Box, UniFi), **rattaché à l'utilisateur**. Rapprochement par **adresse MAC**, comme pour les appareils (03). | ✅ |
+| `device_tracker` **GPS** (application mobile HA) | Pas de reprise automatique : l'utilisateur configure la localisation côté Gladys. *Sources de localisation disponibles dans Gladys à vérifier (application, Gladys Plus, OwnTracks).* | ⚠️ guidé |
+| `zone.home` | La maison Gladys (coordonnées) | ✅ |
+| Autres `zone` (travail, école…) | **Zones** Gladys (`server/lib/area`) : centre et rayon | ✅ si la localisation de l'utilisateur est configurée |
+
+| Automatisation HA | Scène Gladys |
+|---|---|
+| `person` passe à `home` / quitte `home` | Déclencheurs `user.back-home` / `user.left-home` |
+| Zone : entrée ou sortie d'une personne | Déclencheurs d'entrée ou de sortie de zone |
+| `zone.home` à 0 (dernier parti) / ≥ 1 | Conditions `house.is-empty` / `house.is-not-empty` |
+| Condition « la personne X est à la maison » | *Condition par utilisateur : à vérifier dans le moteur de scènes. À défaut, substitut (§ 6.1).* |
+
+**Écart affiché** : HA et Gladys ne déterminent pas la présence de la même façon (délais de détection, règles de consolidation entre plusieurs traqueurs). Le comportement est **similaire**, pas identique, ce qui est conforme à S1.
+
 ## 7. Création des scènes
 
 - **Coexistence** : scènes créées **désactivées** (D4), avec une étiquette commune « Home Assistant », comme le fait le service MCP de Gladys avec l'étiquette `AI`. Elle permet de les retrouver, de les activer en bascule et de les supprimer en cas d'annulation (A9).
@@ -276,7 +302,7 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 | Notification d'ouverture de porte, texte fixe | ✅ |
 | Notification avec le nom de l'entité (template) | ✋ |
 | Chauffage selon l'heure et les jours | ✅ |
-| Chauffage selon la présence | ✋ (V2) |
+| Chauffage selon la présence (« dernier parti », « premier arrivé ») | ✅ si la présence est migrée (§ 6.3) |
 | Alerte de température (seuil et durée) | ✅ |
 | Volets au coucher du soleil avec décalage | ✅ (E4 affiché) |
 | Volets selon l'élévation du soleil | ✅ si un appareil expose l'élévation (§ 6.1), sinon ✋ |
@@ -319,6 +345,7 @@ En complément de 06 :
 |---|---|
 | S1 | Objectif : un **fonctionnement similaire**. Les écarts propres à Gladys sont admis et **affichés** : indisponibilité, erreur d'action, heures solaires. Le reste suit la liste blanche (§ 2, ex-Q04-1). |
 | S2 | **Réécritures de motifs** retenues : bibliothèque fermée, statut distinct, accord scène par scène (§ 5, ex-Q04-2). |
+| S10 | La **présence** passe en **V1** (§ 6.3, D30) : traqueurs réseau et Bluetooth rapprochés par MAC, zones, déclencheurs d'arrivée et de départ, conditions de maison vide ou occupée. |
 | S9 | Les **entrées HA** (`input_boolean`, `input_number`, `counter`) sont migrées **dès la V1** en appareils virtuels (§ 6.2, D27). |
 | S8 | Le convertisseur cherche un **substitut** (appareil existant, appareil virtuel, intégration) à toute entité HA qui n'a pas d'équivalent dans le cœur, avant de refuser (§ 6.1). |
 | S5 | **V1** : scènes HA et **automatisations simples** (§ 2.4), dont le motif « lumière sur mouvement » (D26). |
