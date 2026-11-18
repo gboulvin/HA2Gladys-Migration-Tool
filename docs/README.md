@@ -9,7 +9,7 @@
 | 04 | [Scènes](04-mapping-scenarios.md) | Automatisations HA → scènes Gladys (lot 2) | 📝 Brouillon |
 | 05 | `05-ux.md` | Parcours utilisateur, écrans, rapport de migration | ⏳ À rédiger |
 | 06 | `06-tests.md` | Stratégie de test, jeux de données | ⏳ À rédiger |
-| 07 | `07-historiques.md` | Import des historiques de données HA | ⏳ À rédiger |
+| 07 | [Historiques](07-historiques.md) | Import des historiques de données HA | 📝 Brouillon |
 | — | [`decisions/`](decisions/README.md) | Décisions d'architecture (ADR) | — |
 | — | [`research/gladys-codebase.md`](research/gladys-codebase.md) | Note de recherche : étude du code Gladys (commit `71edb17`) | 📚 Référence |
 | — | [`research/ha-integrations-usage.md`](research/ha-integrations-usage.md) | Note de recherche : intégrations HA les plus utilisées | 📚 Référence |
