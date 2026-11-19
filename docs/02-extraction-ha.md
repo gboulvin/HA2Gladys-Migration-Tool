@@ -1,7 +1,7 @@
 # 02 — Lecture des données Home Assistant
 
 - **Statut** : 📝 Brouillon
-- **Dernière mise à jour** : 2026-11-17
+- **Dernière mise à jour** : 2026-11-19
 - **Prérequis** : [00 — Vision](00-vision.md), [01 — Architecture](01-architecture.md) (PR #1), [note de recherche HA](research/ha-data-sources.md)
 - **Référence HA étudiée** : `home-assistant/core` `9b5a396` (2026.12 dev), comparé au tag publié **2026.11.2**. Bibliothèque `securetar` `08db90e`. Supervisor `e610ca8`.
 
@@ -54,7 +54,14 @@ Le mode A combine le meilleur des deux sources : automatisations résolues par H
 | Intégrations | `config_entries/get` | Sans identifiants |
 | Personnes | `person/list` (`storage` et `config`), `config/auth/list` | D11 |
 | Automatisations | `get_states` sur `automation.*`, puis **WS `automation/config`** par entité | Couvre toutes les automatisations, y compris sans `id`, dans des packages ou issues d'un blueprint (R § 1.5). La route REST ne lit que `automations.yaml` et n'est pas utilisée. |
-| Scripts appelés par les automatisations | `script/config` | Lot 2 |
+| Scripts | `get_states` sur `script.*`, puis `script/config` par entité | V1 : scripts simples et appels depuis les automatisations (04 § 8 ter) |
+| Scènes HA | `get_states` sur `scene.*` (attribut `id`, présent seulement pour une scène qui en a un : [core] `components/homeassistant/scene.py:375-381`), puis REST `GET /api/config/scene/config/<id>` (administrateur : [core] `components/config/view.py:44`, `:85-86`) | V1 (04 § 8 bis) |
+| Entrées (*helpers*) | `input_boolean/list`, `input_number/list`, `counter/list` (commandes `<domaine>/list` des collections : [core] `helpers/collection.py:600-606`), états par `get_states` | V1 (D27). Les entrées définies en YAML n'apparaissent que dans `get_states`. |
+| Zones | `zone/list` (zones de l'éditeur), `get_states` sur `zone.*` (zones YAML et `zone.home`) | V1 (D30) |
+| Configuration HA | `get_config` : fuseau horaire, coordonnées, altitude, système d'unités ([core] `components/websocket_api/commands.py:734-745`) | Contrôles de 04 § 4, coordonnées de la maison (04 § 6.3) |
+| Tableaux de bord | `lovelace/dashboards/list` ([core] `components/lovelace/__init__.py:252`), puis `lovelace/config` par `url_path` ([core] `components/lovelace/websocket.py:130-135`) | V1 (08 § 3). *Droits exacts et mode YAML à vérifier.* |
+| Modules complémentaires | `supervisor/api` vers `/addons` ([core] `components/hassio/websocket_api.py:111-148`, administrateur) | V1 (D29, 03 § 7 ter). Absent sans Supervisor. |
+| Photos des personnes | `person/list` donne le champ `picture` (URL d'image) ; image par REST *à vérifier* | 03 § 6 |
 | Sauvegardes disponibles | `backup/info` | Mode A (§ 3.3) |
 | Historique des états | `history/history_during_period`, par fenêtres de temps | Pas de pagination côté HA (R § 1.7) |
 | Statistiques long terme | `recorder/list_statistic_ids`, `recorder/statistics_during_period` (`period: "hour"`) | Toujours passer `units` explicitement, sinon HA convertit (R § 1.8) |
@@ -62,9 +69,9 @@ Le mode A combine le meilleur des deux sources : automatisations résolues par H
 
 ### 3.3 Téléchargement de la sauvegarde (mode A)
 
-1. `backup/info` liste les sauvegardes existantes et leurs emplacements (*agents*). L'outil propose **la plus récente** qui contient HA et, si possible, la base d'historique (`homeassistant.exclude_database = false`). Il indique sa date.
+1. `backup/info` liste les sauvegardes existantes et leurs emplacements (*agents*). L'outil propose **la plus récente** qui contient HA (`homeassistant_included`) et, si possible, la base d'historique (`database_included`) ([core] `components/backup/models.py:35-39`). Il indique sa date. *Corrigé le 2026-11-19 (F6) : `exclude_database` n'existe que dans le `backup.json` de l'archive (§ 4.1), pas dans la réponse de l'API.*
 2. L'utilisateur saisit le mot de passe de cette sauvegarde. Pour les sauvegardes automatiques, c'est la « clé de chiffrement » affichée dans les réglages de HA, à transmettre **telle quelle** (R § 4.4).
-3. Gladys appelle `GET /api/backup/download/<id>?agent_id=<agent>&password=<mot de passe>`. HA **déchiffre lui-même** et renvoie un tar en clair (R § 4.4), que Gladys écrit en flux dans son dossier de travail (01 § 7.3, voie 1).
+3. Gladys appelle `GET /api/backup/download/<id>?agent_id=<agent>&password=<mot de passe>`. HA **déchiffre lui-même** et renvoie un tar en clair (R § 4.4). Gladys le lit **en flux pendant le téléchargement**, avec l'extraction sélective du § 4.3 (règle 1) : l'archive en clair n'est **jamais écrite telle quelle sur disque** (01 § 7.2, 01 § 7.3 voie 1).
 4. Lecture locale identique au mode C (§ 4), **sans l'étape de déchiffrement**.
 
 > ⚠️ Le mot de passe passe dans l'URL. La connexion doit donc être en HTTPS, ou rester sur le réseau local. Le mot de passe peut aussi apparaître dans les journaux d'accès de HA ou d'un proxy inverse. L'utilisateur en est averti, et pourra changer ce mot de passe dans HA après la migration.
@@ -90,15 +97,21 @@ Un tar externe contient `backup.json` en clair et une archive interne par compos
 | `.storage/core.config_entries` | Intégrations, **identifiants pour le préremplissage** | **Oui** |
 | `.storage/person` | Personnes | Non |
 | `.storage/auth` | Utilisateurs (noms, statut administrateur) | **Oui** (contient des jetons) |
-| `automations.yaml`, `scripts.yaml`, `blueprints/`, `configuration.yaml` et inclusions, `secrets.yaml` | Automatisations (lot 2, § 6.3) | `secrets.yaml` : **oui** |
+| `.storage/input_boolean`, `.storage/input_number`, `.storage/counter` (version 1 : [core] `components/input_boolean/__init__.py:53-54`, de même pour `input_number` et `counter`) | Entrées (D27) | Non |
+| `.storage/zone` (version 1 : [core] `components/zone/__init__.py:128-129`) | Zones (D30) | Non |
+| `.storage/core.config` ([core] `core_config.py:87`) | Configuration HA : fuseau horaire, coordonnées, unités (04 § 4, § 6.3) | Non |
+| `.storage/image` et dossier `image/<id>/original` ([core] `components/image_upload/__init__.py:28`, `:116-119`) | Photos des personnes (03 § 6), seulement si l'utilisateur l'accepte | Non |
+| `.storage/lovelace`, `.storage/lovelace.<id>`, `.storage/lovelace_dashboards` ([core] `components/lovelace/dashboard.py:35-38`) | Tableaux de bord (08 § 3) | Non |
+| `automations.yaml`, `scripts.yaml`, `scenes.yaml`, `blueprints/`, `configuration.yaml` et inclusions, `secrets.yaml` | Automatisations, scripts et scènes HA (V1, § 6.3) | `secrets.yaml` : **oui** |
 | `home-assistant_v2.db` **et** `home-assistant_v2.db-wal` | Historique et comptage | Non |
 | `.HA_VERSION` | Version | Non |
+| `backup.json` (liste `addons`) et archive du module Zigbee2MQTT | Modules (03 § 7 ter) ; données de Zigbee2MQTT pour la bascule (01 § 9.3) | Archive Zigbee2MQTT : **oui** (clé réseau). Écrite dans le dossier de travail seulement si la bascule la reprend. |
 
 **Ne sont jamais lus ni extraits** : `auth_provider.homeassistant` (mots de passe hachés), `.storage/backup` (contient le mot de passe des sauvegardes), ni le reste du dossier.
 
 ### 4.3 Règles de lecture
 
-1. **Extraction sélective et en flux** : on ne garde que les fichiers du § 4.2. Les fichiers sensibles sont lus **en mémoire** et jamais écrits sur disque. La base d'historique, trop volumineuse, est écrite dans le dossier de travail puis supprimée (01 § 7.2).
+1. **Extraction sélective et en flux, pendant le transfert** (mode A : téléchargement ; mode C : téléversement ou lecture du fichier déposé) : on ne garde que les fichiers du § 4.2. Les fichiers sensibles sont lus **en mémoire** et jamais écrits sur disque. Seuls la base d'historique et son WAL, trop volumineux, et, si besoin, l'archive du module Zigbee2MQTT sont écrits dans le dossier de travail, conservé tant que l'exécution est ouverte (01 § 7.2). Le reste de l'archive est ignoré.
 2. **Sécurité des archives** : les contrôles de Gladys sont réutilisés (`server/utils/backupSafety.js` : noms de fichiers sûrs, aucune traversée de chemin).
 3. **Lecteur tar en JavaScript** : les archives internes chiffrées se lisent en flux (déchiffrement, puis gunzip, puis tar). Le binaire `tar`, prévu en 01 § 3.1, ne suffit pas (R § 4.4). Une bibliothèque de lecture tar en flux est donc ajoutée (dépendance à valider, D18).
 4. **Base d'historique** : la base et son fichier WAL sont extraits **côte à côte**, sinon les écritures récentes manquent. La base est ouverte en **lecture seule** avec `sqlite3`, déjà présent dans Gladys (R § 8, point 14).
@@ -113,7 +126,7 @@ Un tar externe contient `backup.json` en clair et une archive interne par compos
 
 - La v3 permet de **vérifier le mot de passe** avant tout déchiffrement (clé de validation). Un mauvais mot de passe est signalé immédiatement.
 - Avec la v1 et la v2, un mauvais mot de passe ne se détecte qu'au premier bloc.
-- **Ajout d'une dépendance libsodium au cœur** (D18). Un **test de bout en bout sur de vraies sauvegardes v2 et v3** est obligatoire. Plusieurs détails d'implémentation restent *à vérifier*, notamment le remplissage de la personnalisation BLAKE2b (R § 4.4).
+- **Ajout d'une dépendance libsodium, propre au service** (A7, § 9 ; présentée sur le forum, D18). Un **test de bout en bout sur de vraies sauvegardes v2 et v3** est obligatoire. Plusieurs détails d'implémentation restent *à vérifier*, notamment le remplissage de la personnalisation BLAKE2b (R § 4.4).
 
 ## 5. Historiques (D22 à D24)
 
@@ -137,7 +150,7 @@ Un tar externe contient `backup.json` en clair et une archive interne par compos
 
 **Raccord entre les deux niveaux** : pour une même fonction Gladys, les statistiques horaires couvrent le passé lointain et les états bruts les derniers jours. La frontière est la date du plus ancien état brut conservé : les statistiques sont importées jusqu'à cette date, les états bruts à partir d'elle. On évite ainsi de compter deux fois la même période.
 
-**Mesures angulaires** (`mean_type = 2`, par exemple la direction du vent) : la moyenne circulaire calculée par HA est importée telle quelle.
+**Mesures angulaires** (`mean_type = 2`, par exemple la direction du vent) : la moyenne circulaire calculée par HA est importée telle quelle. La colonne `statistics_meta.mean_type` n'existe qu'à partir du schéma 49 ([core] `components/recorder/const.py:47`, `CIRCULAR_MEAN_SCHEMA_VERSION`). Si elle est absente, l'historique des mesures angulaires n'est pas importé, et c'est signalé (§ 7).
 
 ### 5.3 Estimation du volume (D24)
 
@@ -155,7 +168,7 @@ Pour `total` et `total_increasing`, HA stocke deux séries (R § 5.5) :
 - `state` : l'index brut du compteur, qui peut revenir à zéro ;
 - `sum` : un cumul continu, qui « traverse » les remises à zéro.
 
-La consommation d'une heure est `sum(h) − sum(h−1)`. Le choix de la série à importer dépend de la **fonction Gladys cible** : index cumulé ou consommation par période. Il est donc défini dans les correspondances de fonctions (section 03). Gladys dérive déjà des consommations à 30 minutes à partir d'un index : l'interaction avec ce calcul devra être vérifiée.
+La consommation d'une heure est `sum(h) − sum(h−1)`. Le choix de la série à importer est **tranché en 07 § 3.3 (H2)** : l'index réel (`state`), puis recalcul des consommations, coûts et productions par Gladys. L'interaction avec la consommation à 30 minutes reste à mesurer (Q07-1).
 
 ### 5.5 Unités et horodatages
 
@@ -177,16 +190,16 @@ La consommation d'une heure est `sum(h) − sum(h−1)`. Le choix de la série �
 
 Entités désactivées (`disabled_by`), masquées (`hidden_by`), de catégorie `diagnostic` ou `config`. Elles sont présentes dans l'inventaire avec le statut « ignoré » (vision § 8) et restent visibles dans le rapport détaillé.
 
-### 6.3 Automatisations (lot 2)
+### 6.3 Automatisations, scripts et scènes HA (V1)
 
 | Mode | Automatisations disponibles |
 |---|---|
-| A, B | **Toutes**, résolues par HA (`automation/config`) |
-| C | `automations.yaml` (éditeur de HA), avec substitution des blueprints référencés. Les automatisations définies ailleurs (packages, fichiers inclus, clés `automation xxx:`) sont **listées** si on les trouve, mais classées « à refaire manuellement ». La fiabilité prime (D5). |
+| A, B | **Toutes**, résolues par HA (`automation/config`, `script/config`, configuration REST des scènes, § 3.2) |
+| C | `automations.yaml`, `scripts.yaml` et `scenes.yaml` (éditeur de HA), avec substitution des blueprints référencés. Les automatisations définies ailleurs (packages, fichiers inclus, clés `automation xxx:`) sont **listées** si on les trouve, mais classées « à refaire manuellement ». La fiabilité prime (D5). |
 
-Pour le mode C, on ne réimplémente **pas** l'intégralité du chargeur YAML de HA. On se limite à `automations.yaml`, `!secret` et la substitution `!input` des blueprints, ce qui couvre l'usage de l'éditeur graphique. *Ce périmètre pourra être élargi plus tard si le besoin est avéré.*
+Pour le mode C, on ne réimplémente **pas** l'intégralité du chargeur YAML de HA. On se limite à `automations.yaml`, `scripts.yaml`, `scenes.yaml`, `!secret` et la substitution `!input` des blueprints, ce qui couvre l'usage de l'éditeur graphique. *Ce périmètre pourra être élargi plus tard si le besoin est avéré.*
 
-**Identité d'une automatisation** pour l'idempotence (D13) : son `id` HA. Sans `id` (YAML), une **empreinte du contenu** est utilisée, l'`entity_id` dérivé de l'alias étant instable (R § 8, point 18).
+**Identité d'une automatisation** pour l'idempotence (D13) : son `id` HA. Sans `id` (YAML), une **empreinte du contenu** est utilisée, l'`entity_id` dérivé de l'alias étant instable (R § 8, point 18). La clé stable de **chaque type d'élément** (scènes, scripts, entrées, zones, tableaux de bord, modules…) est définie en 01 § 5.1 bis (T9).
 
 ## 7. Versions prises en charge (D9)
 
@@ -196,7 +209,7 @@ Pour le mode C, on ne réimplémente **pas** l'intégralité du chargeur YAML de
 | `core.entity_registry` | 1.24 | Mineures connues acceptées |
 | `core.area_registry` / `floor_registry` | 1.9 / 1.3 | Idem |
 | `core.config_entries` | 1.5 | Idem |
-| Schéma du recorder | 53 | Schémas ≥ 48 acceptés (R § 5.2) |
+| Schéma du recorder | 53 | Schémas ≥ 49 acceptés (colonne `mean_type`, § 5.2). En pratique, E2 (HA ≥ 2026.8) impose déjà un schéma plus récent. *Corrigé le 2026-11-19 (F7) : le minimum était 48 (R § 5.2).* |
 | SecureTar | v1, v2, v3 | Toutes |
 | HA par l'API | 2026.11 | Avertissement au-delà de la dernière version testée, refus en dessous du minimum |
 
@@ -205,7 +218,7 @@ Une **version plus récente qu'attendu** déclenche un avertissement, pas un ref
 ## 8. Sécurité (compléments à 01 § 7)
 
 - Le **jeton administrateur** HA donne un accès complet à HA. Il reste en mémoire (coffre éphémère), et l'utilisateur est invité à le **révoquer** après la migration.
-- La sauvegarde déchiffrée contient en clair `secrets.yaml`, `core.config_entries` et `auth`, qui inclut **les jetons de rafraîchissement, dont celui fourni à l'outil**. D'où l'extraction sélective en mémoire (§ 4.3) : ces fichiers ne sont jamais écrits sur disque.
+- La sauvegarde déchiffrée contient en clair `secrets.yaml`, `core.config_entries` et `auth`, qui inclut **les jetons de rafraîchissement, dont celui fourni à l'outil**. D'où l'extraction sélective en mémoire **pendant le transfert** (§ 4.3), en mode A comme en mode C : ces fichiers ne sont jamais écrits sur disque, et l'archive complète non plus.
 - Le **mot de passe de la sauvegarde** transite dans l'URL en mode A (§ 3.3).
 - Les identifiants extraits ne servent qu'au **préremplissage consenti** : l'utilisateur voit, intégration par intégration, ce qui sera reporté dans Gladys.
 
@@ -215,12 +228,12 @@ Une **version plus récente qu'attendu** déclenche un avertissement, pas un ref
 |---|---|---|
 | Client WebSocket | Modes A, B | `ws` déjà présent |
 | `sqlite3` | Lecture de la base d'historique | Déjà présent |
-| Lecteur tar en flux (JavaScript) | Modes A, C | **À ajouter** |
-| Analyseur YAML avec balises personnalisées | Mode C, automatisations | **À ajouter** (lot 2 seulement) |
-| libsodium (WebAssembly) | Mode C, sauvegardes v3 | **À ajouter** |
-| Route de téléversement en flux | Mode C depuis le navigateur | Souhaitable (01 § 7.3, voie 2) |
+| Lecteur tar en flux (JavaScript) | Modes A, C | **À ajouter**, propre au service (A7) |
+| Analyseur YAML avec balises personnalisées | Mode C : `automations.yaml`, `scripts.yaml`, `scenes.yaml` (V1, D26, D31) | **À ajouter**, propre au service (A7) |
+| libsodium (WebAssembly) | Mode C, sauvegardes v3 | **À ajouter**, propre au service (A7) |
+| Route de téléversement en flux | Mode C depuis le navigateur | Souhaitable (01 § 7.3, voie 2) : modification du cœur facultative |
 
-En V1 (appareils, personnes, services, historiques), le **mode A** ne demande qu'**une** nouvelle dépendance, le lecteur tar, et aucune modification de route.
+En V1, le **mode A** demande une nouvelle dépendance (le lecteur tar) et le **mode C** trois (lecteur tar, YAML, libsodium). Toutes sont **propres au service** (A7, 01 § 3.1) : aucune dépendance n'est ajoutée au cœur, et aucune route du cœur n'est modifiée, hormis la route facultative de téléversement. *Corrigé le 2026-11-19 (C12) : le YAML sert dès la V1, en mode C.*
 
 ## 10. Décisions
 

@@ -1,7 +1,7 @@
 # 03 — Correspondances : catalogue, appareils, pièces, personnes, services
 
 - **Statut** : 📝 Brouillon
-- **Dernière mise à jour** : 2026-11-17
+- **Dernière mise à jour** : 2026-11-19
 - **Prérequis** : [00 — Vision](00-vision.md), [01 — Architecture](01-architecture.md) (PR #1), [02 — Lecture HA](02-extraction-ha.md) (PR #2)
 - **Notes de recherche** : [clés de rapprochement](research/matching-keys.md) (« K § x »), [usage des intégrations](research/ha-integrations-usage.md), [code Gladys](research/gladys-codebase.md)
 - **À relire avec** : William-De71, auteur du [tracker des intégrations](https://william-de71.github.io/gladys-integrations-tracker/) (D32)
@@ -11,7 +11,7 @@
 ## 1. Objet
 
 Cette section définit :
-1. le **format du catalogue** de correspondances (D12, D21) ;
+1. le **format du catalogue** de correspondances (D12, D32) ;
 2. les règles de **rapprochement des appareils** et de **correspondance des fonctions** (D16) ;
 3. le traitement des **pièces**, des **personnes** et des **intégrations de type service** (D11, D14, D20).
 
@@ -118,7 +118,7 @@ Comme vous le soulignez, chaque nouvelle version du SDK oblige les intégrations
     },
     "zha": {
       "targets": [
-        { "kind": "native", "service": "zigbee2mqtt", "quality": "equivalent", "status": "native",
+        { "kind": "native", "service": "zigbee2mqtt", "quality": "equivalent", "status": "native", "confirmed": true,
           "notes": { "fr": "Changer de pile Zigbee impose de réappairer les appareils.", "en": "…" } }
       ]
     },
@@ -128,14 +128,24 @@ Comme vous le soulignez, chaque nouvelle version du SDK oblige les intégrations
       ]
     },
     "bthome": { "targets": [] }
+  },
+  "addons": {
+    "core_mosquitto": { "kind": "native", "service": "mqtt" },
+    "45df7312_zigbee2mqtt": { "kind": "native", "service": "zigbee2mqtt", "data_import": true },
+    "ccab4aaf_frigate": { "kind": "external", "store_slug": "<propriétaire>/<dépôt>" },
+    "core_configurator": { "kind": "not_needed",
+      "notes": { "fr": "Gladys se configure entièrement depuis son interface.", "en": "…" } }
   }
 }
 ```
 
+*Les slugs de modules ci-dessus sont des exemples, à vérifier sur une installation réelle.*
+
 - `quality` : `same_name`, `equivalent`, `partial` (repris du tracker).
 - `status` : `native`, `store`, `in_progress`, `free`.
-- `confirmed` : la correspondance a été vérifiée à la main. Le rapprochement automatique du tracker n'est juste qu'à environ 97 %, ce qui suffit pour un tableau de suivi, mais pas pour installer une intégration chez quelqu'un.
+- `confirmed` (booléen, `false` par défaut) : la correspondance a été vérifiée à la main. Le rapprochement automatique du tracker n'est juste qu'à environ 97 %, ce qui suffit pour un tableau de suivi, mais pas pour installer une intégration chez quelqu'un.
 - **Installable automatiquement** (CT1) : seulement une cible `native` ou `store` qui a des **règles de migration**, qui publie `GLADYS_HW_*`, **ou** qui est `confirmed`. Les autres sont seulement **suggérées** : l'utilisateur les voit, avec un avertissement, et décide. Les cibles `in_progress` et `free` alimentent les messages de D15 (« quelqu'un y travaille », ou « créez-la »).
+- **`addons`** (table des modules, D29, § 7 ter) : slug du module HA → équivalent. `kind` vaut `native` (avec `service`), `external` (avec `store_slug`), `not_needed` (⏭️ « non nécessaire avec Gladys », avec `notes`) ou `none` (❌ sans équivalent ; un slug absent de la table vaut `none`). `data_import: true` signale que les données du module peuvent être reprises : seulement Zigbee2MQTT en V1 (A11).
 - **Ordre des cibles** (CT2), quand un domaine en a plusieurs : d'abord celles qui ont des **règles de migration** ou `GLADYS_HW_*`, puis celles **publiées dans le store**, puis la plus **récemment active**. La première est recommandée. On évite ainsi un choix éditorial laissé au mainteneur du catalogue. Les doublons repérés par le tracker (Tasmota, Philips Air…) sont départagés par ce critère.
 
 ### 3.2 Niveau 2 : `gladys-migration.json`
@@ -171,11 +181,30 @@ Exemple complet pour Shelly (règles tirées de K § 6) :
       "features": [
         {
           "unique_id": "^(?<mac>[0-9A-Fa-f]{12})-(?<key>[a-z0-9]+:[0-9]+)$",
-          "feature": "{key}:binary"
+          "feature": "{key}:binary",
+          "values": { "on": 1, "off": 0 }
+        },
+        {
+          "unique_id": "^(?<mac>[0-9A-Fa-f]{12})-(?<key>light:[0-9]+)$",
+          "feature": "{key}:binary",
+          "values": { "on": 1, "off": 0 },
+          "attributes": [
+            { "attribute": "brightness", "feature": "{key}:brightness",
+              "scale": { "from": [0, 255], "to": "feature", "round": true } }
+          ]
         },
         {
           "unique_id": "^(?<mac>[0-9A-Fa-f]{12})-(?<key>switch:[0-9]+)-(?<attr>power|voltage|temperature)$",
           "feature": "{key}:{attr}"
+        },
+        {
+          "unique_id": "^(?<mac>[0-9A-Fa-f]{12})-(?<key>input:[0-9]+)$",
+          "feature": "{key}:button",
+          "events": [
+            { "event_type": "single_push", "value": 1 },
+            { "event_type": "double_push", "value": 2 },
+            { "event_type": "long_push", "value": 6 }
+          ]
         }
       ],
       "config": [
@@ -187,6 +216,32 @@ Exemple complet pour Shelly (règles tirées de K § 6) :
   }
 }
 ```
+
+*Les règles `light:` et `input:` de l'exemple illustrent les tables de conversion : leurs noms de features et d'événements sont à confirmer avec l'auteur de l'intégration.*
+
+**Syntaxe des tables de conversion** (T3). Elles servent aux scènes (04 § 3.3, § 4, § 8 bis) et, pour `values` et `scale`, à l'historique (07 § 3). Elles s'écrivent dans une règle `features[]` :
+
+| Clé | Forme | Sens |
+|---|---|---|
+| `values` | objet `{ "<état HA>": <nombre> }` | Table de valeurs : état HA → valeur de la feature Gladys. Sert dans les deux sens : états (historique, déclencheurs, conditions) et commandes (`device.set-value`). Un état absent de la table n'est pas convertible. Exemple : porte `{ "on": 0, "off": 1 }` (ouverte = 0 dans Gladys, 04 § 4). |
+| `attributes` | liste de `{ "attribute", "feature", "values"?, "scale"?, "transform"? }` | Attribut HA (`brightness`, `current_position`, `temperature`, `color_temp_kelvin`…) → feature Gladys (même gabarit que `feature`), avec sa propre table ou échelle |
+| `events` | liste de `{ "event_type", "subtype"?, "value" }` | Événement d'appareil HA (bouton, télécommande) → valeur de la feature bouton. Les valeurs sont celles de `BUTTON_STATUS` (`server/utils/constants.js:6-20`, par exemple `CLICK` = 1). |
+| `scale` | `{ "from": [min, max], "to": [min, max] \| "feature", "round"? }` | Échelle linéaire. `"to": "feature"` prend le min et le max de la feature Gladys. |
+| `transform` | `invert`, `scale` (facteur), `unit` (§ 3.4) | Transformation de valeur déjà décrite au § 3.4 |
+
+**Tables par défaut, par catégorie Gladys.** Le fichier `gladys-migration.json` est facultatif (§ 2.4). Sans table déclarée, l'outil applique une **table par défaut** choisie d'après la catégorie et le type de la feature Gladys cible. Ces tables, comme les règles des **services natifs**, sont versionnées dans le **dépôt Gladys** (D32), dans le dossier `rules/` du service (01 § 11), avec le même schéma que `gladys-migration.json` :
+
+| Catégorie / type Gladys (`server/utils/constants.js`) | Table par défaut |
+|---|---|
+| `switch`, `light` / `binary` | `values` : `on` → 1, `off` → 0 |
+| `motion-sensor`, `presence-sensor` / `binary` | `values` : `on` → 1, `off` → 0 |
+| `opening-sensor` / `binary` | `values` : `on` (ouvert) → 0, `off` (fermé) → 1 |
+| `light` / `brightness` | attribut `brightness`, `scale` de `[0, 255]` vers la feature |
+| `shutter` / `position` | attribut `current_position`, `scale` de `[0, 100]` vers la feature |
+| `thermostat` / `target-temperature` | attribut `temperature`, conversion d'unité (§ 3.4) |
+| Autres | Aucune table : la fonction n'est pas utilisable dans une scène convertie (l'élément devient ⚠️ ou ✋). Son historique reste importable si ses états sont numériques (07 § 3.5). |
+
+Une table déclarée par l'intégration l'emporte toujours sur la table par défaut. Le schéma `gladys-migration.v1.json` (§ 3.6) décrit ces clés.
 
 ### 3.3 Règles de rapprochement (`devices[].match`)
 
@@ -219,6 +274,7 @@ Elle est nécessaire pour l'**historique** (07) et les **scènes** (04).
 
 1. **Règle déclarée** : une expression régulière sur le `unique_id` de l'entité HA, avec des groupes nommés, produit le **dernier segment** de l'`external_id` de la feature Gladys. Options possibles :
    - une table de traduction (`map`), pour les propriétés dont le nom diffère ;
+   - les tables de conversion `values`, `attributes`, `events` et `scale` (§ 3.2) ;
    - une transformation de valeur (`transform`) : `invert` pour les ouvertures, `scale` avec un facteur (par exemple KiB/s vers Mbit/s pour UPnP), `unit` pour une conversion déclarée.
 2. **Repli générique** si aucune règle ne s'applique : on associe l'entité HA à une feature Gladys de l'appareil rapproché **seulement si une seule** feature libre a le même triplet (catégorie, type, unité). La catégorie et le type sont déduits de l'entité HA par la table du service MQTT de Gladys (`server/services/mqtt/lib/homeAssistant/constants.js`, K § 4.5). C'est la règle qu'applique déjà la migration d'appareils native de Gladys (`docs/specs/device-migration.md`).
 3. **Sinon**, la fonction HA est marquée « perdue » (statut ⚠️ « migrable partiellement »). Elle reste visible dans le rapport.
@@ -280,9 +336,11 @@ Synthèse de K § 1 :
 | `person.name` | `firstname` (et `lastname` si l'utilisateur sépare le nom) | |
 | Utilisateur HA lié : administrateur ou propriétaire | `role: admin` | Sinon `habitant` |
 | Personne sans utilisateur HA | `role: habitant` | |
-| — | **`email`, `password` (8 caractères minimum), `birthdate`, `language`** | **Obligatoires dans Gladys et absents de HA** : à saisir pour chaque personne retenue |
+| — | **`birthdate`, `language`** | **Obligatoires dans Gladys** (`server/models/user.js:42-49`) et absents de HA : à saisir pour chaque personne retenue (langue proposée : celle de l'administrateur) |
+| — | **`password`** (8 caractères minimum) | **Obligatoire** (`server/lib/user/user.create.js:24-26`, `server/models/user.js:66-72`). Pour une personne qui doit se connecter : mot de passe provisoire saisi. Pour une personne **sans compte de connexion** : l'outil **génère un mot de passe aléatoire**, jamais affiché ni journalisé ; il pourra être réinitialisé plus tard (*parcours exact à vérifier dans Paramètres → Utilisateurs*). |
+| — | **`email`** | **Facultatif** dans Gladys (`server/models/user.js:34-41`, pas de `allowNull: false`) : nécessaire seulement pour se connecter. *Corrigé le 2026-11-19 (F5) : il était donné pour obligatoire.* |
 | Photo | `picture` | Si présente dans la sauvegarde, après accord |
-| `device_trackers` | Capteurs de présence rattachés à l'utilisateur | Présence en **V1** (D30, 04 § 6.3) |
+| `device_trackers` | Capteurs de présence de l'utilisateur. Gladys n'a pas de lien direct capteur → utilisateur : l'outil **génère des scènes de présence** par utilisateur (04 § 6.3). | Présence en **V1** (D30) |
 
 - Les mots de passe HA ne sont **jamais** repris : ils sont hachés, et l'outil ne lit pas ces fichiers (02 § 4.2).
 - La personne qui fait la migration est déjà un utilisateur Gladys (administrateur). L'outil propose de la **rapprocher** de sa personne HA plutôt que d'en créer une deuxième.
@@ -325,20 +383,20 @@ Le catalogue (niveau 1) reçoit une table **`addons`** : slug du module HA → �
 | **Sans objet** | Éditeur de fichiers, Samba, SSH, MariaDB, Studio Code Server | ⏭️ « Non nécessaire avec Gladys », avec l'explication |
 | **Sans équivalent** | Les autres | ❌, parcours D15 |
 
-- **Source** : `backup.json` de la sauvegarde (liste `addons`), ou par l'API via la commande WebSocket `supervisor/api`, relais vers l'API du Supervisor ([core] `components/hassio/websocket_api.py`). *Points d'accès autorisés et droits à vérifier.* Une installation sans Supervisor (Container, Core) n'a pas de modules : la section est absente du rapport.
+- **Source** : `backup.json` de la sauvegarde (liste `addons`), ou par l'API via la commande WebSocket `supervisor/api`, relais vers l'API du Supervisor ([core] `components/hassio/websocket_api.py:111-148` : réservé aux administrateurs, sans liste blanche de points d'accès). Une installation sans Supervisor (Container, Core) n'a pas de modules : la section est absente du rapport.
 - **Données non reprises** : la configuration et les données des modules restent propres à HA. Les flux Node-RED, par exemple, utilisent des nœuds spécifiques à HA et ne fonctionneraient pas tels quels. Le rapport le dit, module par module.
 - **Coexistence** : si le module tourne encore (Mosquitto, Zigbee2MQTT), Gladys peut s'y connecter plutôt que d'installer le sien. C'est le cas déjà prévu pour Zigbee2MQTT (01 § 9.3). L'outil le propose quand c'est possible.
 
 ## 8. Statuts produits par l'analyseur
 
-Correspondance avec la vision (§ 8) :
+Les statuts eux-mêmes sont définis dans la **table de référence** (00 § 8). Cette table indique seulement comment l'analyseur les attribue aux appareils, à partir du catalogue :
 
 | Situation dans le catalogue | Statut |
 |---|---|
 | Cible `native` ou `store`, règle `sure` | ✅ Migrable |
 | Cible `native` ou `store`, règle `probable` ou rapprochement manuel | ✅ Migrable (confirmation demandée) |
 | Cible dont la qualité est `partial`, ou fonctions perdues | ⚠️ Migrable partiellement |
-| Le domaine HA n'a pas de cible, mais l'appareil est vu par une autre intégration (MQTT, Matter…) | 🔀 Migrable via alternative |
+| Le domaine HA n'a pas de cible, mais l'appareil est vu par une autre intégration (MQTT, Matter…) | 🔀 Migrable via alternative. **Règle de détection** (T8) : un autre appareil HA, d'un domaine qui a une cible au niveau 1, partage avec lui une **connexion** (`mac`, `zigbee`, `upnp`) ou un **identifiant matériel** normalisé (02 § 6.1). C'est alors cet autre domaine qui fournit la cible et la règle de rapprochement. Sans un tel appareil, le statut est ❌. |
 | Cible `in_progress` | ❌ Non migrable, « en cours de développement par … » |
 | Pas de cible (`free`) | ❌ Non migrable : parcours D15 (créer l'intégration, puis le forum) |
 | Entité désactivée, masquée, de diagnostic ; règle `exclude` | ⏭️ Ignoré |

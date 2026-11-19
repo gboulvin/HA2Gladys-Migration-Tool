@@ -1,7 +1,7 @@
 # 04 — Conversion des scènes et automatisations
 
 - **Statut** : 📝 Brouillon
-- **Dernière mise à jour** : 2026-11-17
+- **Dernière mise à jour** : 2026-11-19
 - **Prérequis** : [00 — Vision](00-vision.md) (D5), [01 — Architecture](01-architecture.md), [02 — Lecture HA](02-extraction-ha.md) (§ 6.3), [03 — Correspondances](03-mapping-devices.md)
 - **Note de recherche** : [scene-mapping.md](research/scene-mapping.md) (« S § x »), qui contient la **table de correspondance complète**, élément par élément et sourcée, ainsi que les exemples YAML → JSON.
 
@@ -41,7 +41,7 @@ Trois constats obligent à préciser D5 (« fidélité à 100 %, sinon à refair
 | E4 — heures de lever et de coucher du soleil légèrement différentes (bibliothèques astronomiques différentes, altitude ignorée par Gladys) | Accepté. Mention sur les scènes solaires. |
 | **Tout autre écart** | **Refus**, statut « à refaire manuellement » avec la raison |
 
-Ces mentions apparaissent dans le rapport (05, écran 3) et, si Gladys le permet, dans la description de la scène créée.
+Ces mentions apparaissent dans le rapport (05, écran 3) et dans la **description** de la scène créée (champ `description`, facultatif : `server/models/scene.js:366-369`).
 
 ### 2.2 Liste blanche, refus par défaut
 
@@ -61,7 +61,7 @@ L'utilisateur sait ainsi exactement quoi refaire.
 2. **Appareils** : chaque entité référencée est-elle migrée ? Si non, 🔗 **bloquée par un appareil**, avec la liste. C'est **temporaire** : le statut est réévalué à chaque relance (D13).
 3. Sinon : ✅ **convertible**, avec la liste des écarts acceptés (§ 2.1).
 
-Cet ordre évite de laisser croire qu'une automatisation à template deviendra convertible une fois ses appareils migrés.
+Cet ordre évite de laisser croire qu'une automatisation à template deviendra convertible une fois ses appareils migrés. Les statuts eux-mêmes (dont 🔁, ⚠️ et les sous-raisons de ✋) sont définis dans la table de référence, 00 § 8.
 
 ### 2.4 Périmètre V1 : les automatisations simples (S5)
 
@@ -71,7 +71,9 @@ Cet ordre évite de laisser croire qu'une automatisation à template deviendra c
 |---|---|
 | **Déclencheurs** | Heure fixe, avec ou sans jours de la semaine. Lever et coucher du soleil, avec un décalage qui reste dans la journée. **Changement d'état d'un capteur binaire** (mouvement, ouverture, présence d'eau…), avec ou sans durée (« sans mouvement depuis 5 minutes »). Seuil simple sur une mesure (température, humidité…), avec ou sans durée. |
 | **Conditions** | Plage horaire et jours de la semaine. État simple d'un appareil ou seuil simple. Plusieurs conditions **combinées en ET** uniquement. |
-| **Actions** | Commander un appareil : marche/arrêt, luminosité, position d'un volet, consigne de température. Lancer une scène HA ou un **script** HA migrés (§ 8 ter). Notification à **texte fixe**. |
+| **Actions** | Commander un appareil : marche/arrêt, luminosité, position d'un volet, consigne de température. Lancer une **scène HA** ou un **script HA** migrés (§ 3.3, § 8 bis, § 8 ter). Notification à **texte fixe** (correspondance confirmée, 05 écran 7). |
+| **Présence** (§ 6.3) | Déclencheurs d'arrivée et de départ d'une personne (`user.back-home`, `user.left-home`), d'entrée et de sortie de zone. Conditions « maison vide » et « maison occupée » (`house.is-empty`, `house.is-not-empty`). |
+| **Substituts** (§ 6.1) | Tout déclencheur, condition ou action qui vise une entité dotée d'un substitut : entrée HA migrée en appareil virtuel, appareil « il fait jour » désigné par l'utilisateur (condition `sun` sans décalage), intégration du store (jours ouvrés…). Ils sont alors traités comme des règles d'appareil ordinaires. |
 | **Motif reconnu** | **Lumière sur détection de mouvement avec extinction après un délai**, réécrite en deux scènes (§ 5) |
 | **Mode d'exécution** | Séquence sans attente uniquement (§ 3.4) |
 
@@ -138,9 +140,9 @@ La table complète est dans la note de recherche (S § 4). Voici les règles qui
 | `condition` à l'intérieur d'un `if`, `choose`, `parallel` ou `sequence` : refus | Gladys arrête **toute** la scène, HA seulement la branche |
 | `delay` fixe : `delay`. `wait_template`, `wait_for_trigger` : refus | Pas d'attente d'événement dans Gladys |
 | `repeat` avec un nombre fixe et raisonnable : actions **dépliées**. `while`, `until` : refus | `condition.while` a un plafond d'itérations et un minimum de 100 ms par tour |
-| `notify` à texte fixe : `message.send`, après **confirmation** de la correspondance « service HA → utilisateur et canal Gladys » | Les services de notification n'ont pas d'équivalent automatique |
+| `notify` à texte fixe : `message.send` (champs `user` et `service` facultatif : `server/lib/scene/scene.actions.js:374-381`), après **confirmation** de la correspondance « service HA → utilisateur et canal Gladys » sur l'écran 7 (05) | Les services de notification n'ont pas d'équivalent automatique |
 | Appel d'un **script** HA : `scene.start` vers la scène issue du script (§ 8 ter), en **dernière** position. Si l'appel n'est pas en dernière position et que le script est court et sans attente, son contenu est **déplié** dans la scène appelante. | Gladys n'attend pas la fin d'une scène lancée par `scene.start`, alors que HA attend la fin d'un script appelé directement. |
-| Activation d'une **scène HA** (`scene.turn_on`) : actions `device.set-value` en parallèle, reproduisant les états de la scène | Si chaque état est convertible (Q04-3) |
+| Activation d'une **scène HA** migrée (`scene.turn_on`) : **même règle que pour un script** (ligne précédente). En **dernière position**, `scene.start` vers la scène Gladys issue de la scène HA (§ 8 bis). Ailleurs, ses actions `device.set-value` sont **dépliées** en parallèle dans la scène appelante (une scène HA est courte et sans attente). Sinon, refus. | Tranché pour la V1 le 2026-11-19 (C13), par cohérence avec les scripts. Chaque état doit être convertible (S4). |
 | `automation.trigger` / `script.turn_on` : `scene.start`, **en dernière position** | Gladys n'attend pas la scène lancée. Pour `automation.trigger`, la cible ne doit pas avoir de condition, puisque HA les ignore par défaut. |
 
 ### 3.4 Modes d'exécution
@@ -155,7 +157,7 @@ La table complète est dans la note de recherche (S § 4). Voici les règles qui
 
 ## 4. Compléments au catalogue (03) et à l'inventaire (01)
 
-La conversion des scènes demande au catalogue (03 § 3.4) plus que la correspondance entité → feature :
+La conversion des scènes demande au catalogue (03 § 3.4) plus que la correspondance entité → feature. La **syntaxe JSON** de ces ajouts et les **tables par défaut** par catégorie Gladys sont définies en 03 § 3.2 (T3) :
 
 | Ajout au niveau 2 | Exemple |
 |---|---|
@@ -257,7 +259,8 @@ Les entrées HA sont très présentes dans les automatisations : mode vacances, 
 - Valeur initiale : l'état actuel dans HA.
 - Prérequis : le service MQTT de Gladys configuré, avec un broker. Gladys sait installer le sien. Une commande sur un appareil virtuel publie sur MQTT (`server/services/mqtt/lib/setValue.js`) et échoue sans broker.
 - Ces appareils figurent au journal comme les autres (annulation A9) et portent l'étiquette « Home Assistant ».
-- *À vérifier dans le code de Gladys : création programmatique d'un appareil virtuel MQTT, et enregistrement de l'état sans retour (`has_feedback: false`).*
+- **Enregistrement de l'état sans retour** (vérifié, F9) : pour une fonction sans retour (`has_feedback: false`), le cœur enregistre lui-même l'état après la commande (`server/lib/device/device.setValue.js:33-46`). La commande est publiée sur `gladys/device/<external_id>/feature/<external_id>/state` (`server/services/mqtt/lib/setValue.js:29`).
+- *À vérifier dans le code de Gladys : création programmatique d'un appareil virtuel MQTT.*
 
 **Décision (S9, D27)** : les entrées HA sont migrées **dès la V1**, avec les appareils (05, écran 6). Cela rend convertibles une grande partie des automatisations « à modes » (vacances, nuit, absence) du socle V1.
 
@@ -268,24 +271,39 @@ La présence passe en **V1** : sans elle, une grande partie des automatisations 
 | HA | Gladys | Statut |
 |---|---|---|
 | `person` | Utilisateur (déjà en V1, 03 § 6) | ✅ |
-| `device_tracker` **réseau** (routeur : FRITZ!Box, UniFi, ping, nmap) ou **Bluetooth** | Capteur de présence (`presence-sensor`) du service `lan-manager` ou `bluetooth`, ou d'une intégration du store (FRITZ!Box, UniFi), **rattaché à l'utilisateur**. Rapprochement par **adresse MAC**, comme pour les appareils (03). | ✅ |
-| `device_tracker` **GPS** (application mobile HA) | Pas de reprise automatique : l'utilisateur configure la localisation côté Gladys. *Sources de localisation disponibles dans Gladys à vérifier (application, Gladys Plus, OwnTracks).* | ⚠️ guidé |
-| `zone.home` | La maison Gladys (coordonnées) | ✅ |
-| Autres `zone` (travail, école…) | **Zones** Gladys (`server/lib/area`) : centre et rayon | ✅ si la localisation de l'utilisateur est configurée |
+| `device_tracker` **réseau** (routeur : FRITZ!Box, UniFi, ping, nmap) ou **Bluetooth** | Capteur de présence (`presence-sensor`) du service `lan-manager` ou `bluetooth`, ou d'une intégration du store (FRITZ!Box, UniFi). Rapprochement par **adresse MAC**, comme pour les appareils (03). Rattachement à l'utilisateur par des **scènes générées** (ci-dessous). | ✅ |
+| `device_tracker` **GPS** (application mobile HA) | Pas de reprise automatique : **configuration guidée**, l'utilisateur configure la localisation côté Gladys. *Sources de localisation disponibles dans Gladys à vérifier (application, Gladys Plus, OwnTracks).* | ⚠️ guidé |
+| `zone.home` | La maison Gladys : **coordonnées** mises à jour par `house.update` (`server/lib/house/house.update.js:16` ; champs `latitude`, `longitude` : `server/models/house.js:26-33`). Si la maison a déjà des coordonnées différentes, l'outil propose la mise à jour sans l'imposer ; la valeur d'avant est journalisée (01 § 5.4, règle 2). | ✅ |
+| Autres `zone` (travail, école…) | **Zones** Gladys, créées par `area.create` (`server/lib/area/area.create.js` ; centre et rayon : `server/models/area.js:22-33`) | ✅ si la localisation de l'utilisateur est configurée, sinon ⚠️ |
+
+**Scènes de présence générées (F2).** Gladys n'a **pas de lien direct** entre un capteur de présence et un utilisateur. La présence d'un utilisateur ne change que par deux actions de scène, `user.set-seen-at-home` (→ `house.userSeen`) et `user.check-presence`, ou par l'API (`server/lib/scene/scene.actions.js:659-661`, `:691-711`). L'outil **génère donc, pour chaque utilisateur** qui a au moins un capteur de présence migré, deux scènes :
+
+| Scène | Déclencheur | Action |
+|---|---|---|
+| « Présence : <prénom> vu à la maison » | `device.new-state` sur chacun de ses capteurs de présence, valeur = 1 | `user.set-seen-at-home` (utilisateur, maison) |
+| « Présence : <prénom>, vérification » | `time.changed`, `scheduler_type: interval`, toutes les N minutes (`server/models/scene.js:214-220`, `:260`) | `user.check-presence` avec ses capteurs et un délai de **N minutes** : l'utilisateur est marqué parti si aucun capteur n'a été vu depuis (`server/lib/scene/scene.actions.js:691-711`) |
+
+- **Délai** : 10 minutes par défaut, comme dans l'éditeur de scènes de Gladys (`front/src/routes/scene/edit-scene/actions/CheckUserPresence.jsx:116-117`), modifiable par utilisateur (05, écran 6).
+- **Rattachement** traqueur → utilisateur : proposé d'après les `device_trackers` de la personne HA, confirmé sur l'écran 6 (05).
+- Ces scènes ne commandent aucun appareil : elles sont créées **actives dans les deux modes**, avec l'étiquette « Home Assistant », et journalisées (type `presence_scene`, 01 § 5.1 bis) pour l'annulation.
+- Elles alimentent les déclencheurs `user.back-home` et `user.left-home` et les conditions de maison vide ou occupée utilisés par les automatisations converties.
 
 | Automatisation HA | Scène Gladys |
 |---|---|
 | `person` passe à `home` / quitte `home` | Déclencheurs `user.back-home` / `user.left-home` |
-| Zone : entrée ou sortie d'une personne | Déclencheurs d'entrée ou de sortie de zone |
+| Zone : entrée ou sortie d'une personne | Déclencheurs d'entrée ou de sortie de zone (`area.user-entered`, `area.user-left`) |
 | `zone.home` à 0 (dernier parti) / ≥ 1 | Conditions `house.is-empty` / `house.is-not-empty` |
-| Condition « la personne X est à la maison » | *Condition par utilisateur : à vérifier dans le moteur de scènes. À défaut, substitut (§ 6.1).* |
+| Condition « la personne X est à la maison » | **Pas de condition par utilisateur dans Gladys** : les constantes `CONDITIONS.USER_PRESENCE` existent, mais aucune action ne les utilise (`server/utils/constants.js:830-833`). Substitut désigné par l'utilisateur (§ 6.1), sinon refus ✋ « possible avec un appareil ». *Point « à vérifier » levé le 2026-11-19 (F2).* |
 
 **Écart affiché** : HA et Gladys ne déterminent pas la présence de la même façon (délais de détection, règles de consolidation entre plusieurs traqueurs). Le comportement est **similaire**, pas identique, ce qui est conforme à S1.
 
 ## 7. Création des scènes
 
-- **Coexistence** : scènes créées **désactivées** (D4), avec une étiquette commune « Home Assistant », comme le fait le service MCP de Gladys avec l'étiquette `AI`. Elle permet de les retrouver, de les activer en bascule et de les supprimer en cas d'annulation (A9).
-- ⚠️ Une scène désactivée **reste exécutable** par `scene.start` depuis une autre scène, ou à la main (S § 7.1, X7). En coexistence, l'outil ne crée donc **pas** d'appel `scene.start` vers une scène importée **tant que la cible n'est pas activée**. L'appel est créé au moment de la bascule.
+- **Coexistence** : scènes issues d'**automatisations** créées **désactivées** (D4), avec une étiquette commune « Home Assistant », comme le fait le service MCP de Gladys avec l'étiquette `AI`. Elle permet de les retrouver, de les activer en bascule et de les supprimer en cas d'annulation (A9).
+- ⚠️ Une scène désactivée **reste exécutable** par `scene.start` depuis une autre scène, ou à la main (S § 7.1, X7). En coexistence, l'outil ne crée donc **pas** d'appel `scene.start` vers une scène importée **tant que la cible n'est pas activée**. L'appel est créé au moment de la bascule. Cela ne concerne que les cibles issues d'automatisations (`automation.trigger`) : les scènes issues de scènes et de scripts HA sont actives dans les deux modes.
+- **Appels différés** (T4) : l'automatisation appelante est créée **sans** l'appel, avec le statut ⚠️ **partielle** et la mention « Lancement de <scène> ajouté lors de la bascule ». À la bascule, l'outil ajoute l'appel à sa place (en dernière position, § 3.3) par `scene.update`, et journalise les actions d'avant (01 § 5.4, règle 2).
+- **Icône** : champ obligatoire, choisi dans une liste fermée (`server/models/scene.js:370-373`, `server/config/icons.json`). Toutes les scènes créées par l'outil reçoivent **`home`** (`server/config/icons.json:214`). L'utilisateur la change ensuite s'il le souhaite.
+- **Description** : les écarts acceptés (§ 2.1) et l'origine HA (« Importée de Home Assistant : <nom> »).
 - **Bascule** : activation proposée scène par scène (05 § 5). Une automatisation **désactivée dans HA** reste désactivée dans Gladys.
 - **Identité** : l'`id` HA de l'automatisation, ou son empreinte si elle n'en a pas (02 § 6.3).
 - **Validation** : chaque scène produite est validée par le schéma Joi de Gladys (`server/models/scene.js`) avant création. Un échec est une **erreur du convertisseur**, signalée comme telle et jamais présentée comme un refus normal.
@@ -320,7 +338,7 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 
 | Point | Règle |
 |---|---|
-| **Source** | Mode A et B : entités `scene.*` (`get_states`) et configuration par la route REST de HA `/api/config/scene/config/<id>` (administrateur, lit `scenes.yaml`). Mode C : `scenes.yaml` de la sauvegarde. *Détail à ajouter en 02.* |
+| **Source** | Mode A et B : entités `scene.*` (`get_states`) et configuration par la route REST de HA `/api/config/scene/config/<id>` (administrateur, lit `scenes.yaml`). Mode C : `scenes.yaml` de la sauvegarde. Détail : 02 § 3.2 et § 4.2. |
 | **Périmètre** | Scènes **créées dans HA** (éditeur ou YAML), avec un `id`. Les scènes **fournies par une intégration** (scènes Hue, Tuya…) sont exclues : elles vivent dans l'appareil ou le cloud du fabricant. Elles reviennent à l'intégration Gladys correspondante, si elle les expose. |
 | **Traduction** | Une action `device.set-value` par fonction, toutes **en parallèle** (même groupe), comme HA applique les états d'une scène simultanément |
 | **États et attributs pris en charge en V1** | Marche / arrêt (lumières, prises, interrupteurs, ventilateurs), **luminosité**, **position** et ouverture / fermeture des volets, **consigne** de température. Couleur et température de couleur **si le catalogue déclare la conversion** pour l'intégration (§ 4). |
@@ -328,7 +346,7 @@ Estimation qualitative, faute de statistiques d'usage des automatisations HA (S 
 | **Appareil non migré** | 🔗 bloquée par un appareil, comme pour les automatisations (§ 2.3) |
 | **Activation** | Une scène sans déclencheur ne se lance jamais toute seule. Elle est donc créée **active dans les deux modes** : pas de risque de double exécution en coexistence. |
 | **Nom et étiquette** | Nom de la scène HA, étiquette « Home Assistant » (§ 7) |
-| **Appel depuis une automatisation (lot 2)** | Les actions de la scène sont recopiées dans la scène Gladys appelante (§ 3.3), ou bien la scène importée est lancée par `scene.start` en dernière position. *Choix à faire au lot 2.* |
+| **Appel depuis une automatisation** (V1, C13) | Comme pour un script : `scene.start` vers la scène importée **en dernière position** ; sinon les actions sont **dépliées** dans la scène appelante ; sinon refus (§ 3.3). *Tranché le 2026-11-19 ; la version précédente laissait le choix ouvert.* |
 
 **Conséquence sur la V1** : les **tables de valeurs et d'attributs** du catalogue (§ 4) passent en V1, pour le sous-ensemble ci-dessus. Elles servent aussi aux automatisations simples (§ 2.4).
 
@@ -373,6 +391,8 @@ En complément de 06 :
 | S6 | Les automatisations non converties sont présentées sous forme de **fiche lisible**, avec un brouillon de scène prérempli (§ 2.5). |
 | S7 | Les automatisations élaborées relèvent d'un **assistant distinct** (V2), qui réutilise les fondations de la V1 (§ 2.6). |
 | S4 | Les **scènes HA** (instantanés d'états) sont migrées **dès la V1**, en scènes Gladys sans déclencheur (§ 8 bis, ex-Q04-3). |
+| S12 | **Présence** : l'outil **génère deux scènes par utilisateur** (vu à la maison, vérification périodique avec un délai modifiable). Pas de condition « tel utilisateur est à la maison » dans Gladys : substitut ou refus (§ 6.3, F2). |
+| S13 | Appel d'une **scène HA** ou d'un **script HA** migré depuis une automatisation : `scene.start` en dernière position, sinon contenu déplié s'il est court et sans attente, sinon refus (§ 3.3, C13). |
 | S3 | Les pistes d'évolution du cœur (§ 6) sont suivies dans le **fil du forum** du projet. Le bogue P3 (déclencheur MQTT avec joker) fait l'objet d'un **ticket** sur `GladysAssistant/Gladys` (ex-Q04-4). |
 
 ## 11. Questions ouvertes
