@@ -1,5 +1,7 @@
 # Spécifications — Sommaire
 
+- **Dernière mise à jour** : 2026-11-19
+
 | # | Document | Objet | Statut |
 |---|---|---|---|
 | 00 | [Vision et périmètre](00-vision.md) | Objectifs, périmètre, principes, décisions actées | 📝 Brouillon (corrections de relecture) |
