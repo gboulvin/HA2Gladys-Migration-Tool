@@ -102,7 +102,7 @@ Côté Gladys, une fonction d'index alimente, par le service `energy-monitoring`
 
 **Taille des lots et rythme** : 10 000 points par lot au plus (taille interne de Gladys, ci-dessus), avec une courte pause entre deux lots pour ne pas monopoliser DuckDB, que Gladys utilise en continu. **L'instance doit rester accessible en permanence pendant l'import.** Le rythme suit donc les pratiques du cœur pour ses propres calculs, imports et purges, que Pierre-Gilles réajuste régulièrement. Les paramètres (taille de lot, sous ce plafond, et pause) sont des constantes du service, faciles à revoir. *À calibrer par mesure (Q07-1).*
 
-**À vérifier : graphiques et agrégats (Q07-4).** Les états insérés **dans le passé** doivent apparaître dans les graphiques. Gladys a une table d'agrégats `t_device_feature_state_aggregate` et des types de tâches `HOURLY_DEVICE_STATE_AGGREGATE`, `DAILY_DEVICE_STATE_AGGREGATE` et `MONTHLY_DEVICE_STATE_AGGREGATE` (`server/utils/constants.js:2529-2531`). Premier constat, à confirmer : les graphiques semblent calculés à la lecture, directement sur `t_device_feature_state` dans DuckDB (`server/lib/device/device.getDeviceFeaturesAggregates.js`), et la table d'agrégats n'apparaît plus que dans les purges (`server/lib/device/device.purgeStatesByFeatureId.js:218`, `device.destroy.js:52`). Si un calcul d'agrégats reste actif, l'outil devra déclencher un recalcul après l'import.
+**Graphiques : aucun recalcul à déclencher (H5).** Depuis le passage à DuckDB, les graphiques sont calculés **à la lecture**, directement sur `t_device_feature_state` (`server/lib/device/device.getDeviceFeaturesAggregates.js`). Les états insérés dans le passé y apparaissent donc sans autre action. La table `t_device_feature_state_aggregate` et les types de tâches `HOURLY`, `DAILY` et `MONTHLY_DEVICE_STATE_AGGREGATE` existent encore dans le cœur, mais ne sont plus utilisés : ce sont des **vestiges** de l'ancien stockage (confirmé par le porteur du projet le 2026-11-19). L'outil ne les utilise pas.
 
 ## 5. Estimation du volume et de la durée (D24)
 
@@ -137,10 +137,10 @@ Le résultat est présenté **par appareil**, trié du plus volumineux au plus l
 | H2 | Compteurs d'énergie : import de l'index réel, puis recalcul des consommations, des coûts et, pour un index de production, de la production par Gladys (§ 3.3). *Production ajoutée le 2026-11-19 (T7).* |
 | H3 | Mesures : seule la **moyenne horaire** est importée, sans le minimum ni le maximum (ex-Q07-2). |
 | H4 | Écriture **par ajout seulement** (`saveMultipleHistoricalStates`), en lots de 10 000 états au plus ; jamais d'historique HA après la date de migration d'une fonction ; à l'annulation, historique conservé sur les appareils préexistants (§ 4, § 6, F1). |
+| H5 | Pas de recalcul d'agrégats après l'import : les graphiques sont calculés à la lecture dans DuckDB, et les agrégats sont des vestiges (§ 4, ex-Q07-4). |
 
 ## 8. Questions ouvertes
 
 | # | Question |
 |---|---|
 | Q07-1 | **Mesures sur une instance réelle** : coût par point dans DuckDB, débit d'insertion, taille des lots et pause compatibles avec une instance qui doit rester réactive, comportement de la consommation à 30 minutes calculée à partir d'un index horaire. *Laissée ouverte. À traiter avec Pierre-Gilles et les sauvegardes réelles (Q02-3).* |
-| Q07-4 | **Graphiques et agrégats** : les états insérés dans le passé sont-ils pris en compte par les graphiques sans action, ou faut-il déclencher un recalcul (`t_device_feature_state_aggregate`, tâches `HOURLY`, `DAILY` et `MONTHLY_DEVICE_STATE_AGGREGATE`) ? Voir § 4. |
