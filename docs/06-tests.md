@@ -1,8 +1,8 @@
 # 06 — Stratégie de test
 
 - **Statut** : 📝 Brouillon
-- **Dernière mise à jour** : 2026-11-17
-- **Prérequis** : [01 — Architecture](01-architecture.md) (§ 10), [02 — Lecture HA](02-extraction-ha.md), [03 — Correspondances](03-mapping-devices.md), [07 — Historiques](07-historiques.md)
+- **Dernière mise à jour** : 2026-11-19
+- **Prérequis** : [00 — Vision](00-vision.md) (§ 8, § 10), [01 — Architecture](01-architecture.md) (§ 10), [02 — Lecture HA](02-extraction-ha.md), [03 — Correspondances](03-mapping-devices.md), [04 — Scènes](04-mapping-scenarios.md) (§ 9), [05 — Parcours](05-ux.md), [07 — Historiques](07-historiques.md), [08 — Tableaux de bord](08-tableaux-de-bord.md), [09 — API du service](09-api.md)
 - **Référence** : conventions de contribution de Gladys, résumées dans la [note de recherche](research/gladys-codebase.md) § 1 (`AGENTS.md`, `codecov.yml`, `.github/PULL_REQUEST_TEMPLATE.md`)
 
 ---
@@ -42,12 +42,20 @@ L'architecture isole les fonctions pures (01 § 10). Ce sont elles qui portent l
 |---|---|---|
 | **Normalisation** (02 § 6) | Formes de MAC, IEEE (`xx:xx` contre `0x…`), UDN. Appareils scindés (2026.8) regroupés par connexion. Appareils enfants rattachés à leur parent. Nom (`name_by_user`) et pièce (entité ou appareil). | Fragments de registres HA |
 | **Lecture des fichiers `.storage`** | Versions acceptées, refusées ou signalées (02 § 7). Champs manquants. Format antérieur à 2026.8 refusé (E2). | Un fichier par version de format |
-| **Analyseur** (01 § 3.4) | Chaque statut de la vision (§ 8) et de 03 § 8, sur des inventaires construits pour l'occasion | Inventaires et catalogues de test |
+| **Analyseur** (01 § 3.4) | Chaque statut de la table de référence (00 § 8), **pour chaque type d'élément** (appareils, entrées, personnes, présence, zones, services, modules, scènes et scripts HA, automatisations, tableaux de bord), et les règles d'attribution de 03 § 8, dont la détection de 🔀 (connexion ou identifiant partagé) | Inventaires et catalogues de test |
+| **Convertisseur de scènes** (04 § 9) | **Un test par ligne** de la table de correspondance (S § 4) : YAML HA → JSON validé par le schéma Joi de Gladys (`server/models/scene.js`). **Un test par refus** : code de raison (09 § 4) et chemin de l'élément. Ordre d'évaluation (04 § 2.3). Liste blanche V1, y compris présence et substituts (04 § 2.4). Appels de scènes et de scripts HA : `scene.start` en dernière position, dépliage, refus (04 § 3.3). Appels différés en coexistence (⚠️, 04 § 7). Icône `home` et description. Réécritures : tests de **comportement** (séquences d'événements simulées). | Automatisations, scripts et scènes HA en YAML, un fichier par règle |
+| **Scènes et scripts HA** (04 § 8 bis, § 8 ter) | Actions parallèles, scène partielle, scène bloquée, scènes fournies par une intégration exclues, scripts à paramètres refusés, création active dans les deux modes | |
+| **Entrées → appareils virtuels** (03 § 7 bis, 04 § 6.2) | Types acceptés et refusés, min, max, pas, unité, valeur initiale | |
+| **Présence et zones** (04 § 6.3) | Deux scènes générées par utilisateur, validées par Joi (déclencheurs `device.new-state` et `interval`, actions `user.set-seen-at-home` et `user.check-presence`, délai) ; condition « personne à la maison » refusée sans substitut ; zones ; coordonnées de la maison (valeur d'avant journalisée) | |
+| **Tables de conversion** (03 § 3.2) | `values`, `attributes`, `events`, `scale` ; tables par défaut par catégorie ; priorité de la table déclarée | |
+| **Tableaux de bord** (08) | Composition de l'Accueil (sections omises si vides, pièces chargées, illustration), correspondance carte HA → widget, cartes non reprises comptées, `mobile_order`, ordre (ajout à la fin) | Configurations Lovelace de test |
+| **Modules** (03 § 7 ter) | Table `addons` : natif, externe, sans objet, sans équivalent, slug absent ; section absente sans Supervisor | |
+| **Modèle des exécutions** (01 § 5.1 bis) | Clé stable par type d'élément, verrou (deux exécutions refusées), statuts d'exécution, reprise d'une tâche marquée `purged-when-restarted` | |
 | **Rapprocheur** (03 § 3.3) | Chaque opérateur (`equals`, `suffix`, `ends_with`), chaque normalisation, confiance `sure` et `probable`, aucun candidat, plusieurs candidats, exclusions, cardinalités (enfants, Matter par endpoint), convention `GLADYS_HW_*` prioritaire sur les règles déclarées | Paires « appareil HA, appareils découverts » réalistes, tirées de la [note sur les clés](research/matching-keys.md) |
 | **Correspondance des fonctions** (03 § 3.4) | Règles par expression régulière, tables de traduction, transformations (`invert`, `scale`), repli « triplet unique », refus quand le triplet est ambigu | |
 | **Validation du catalogue** (03 § 3.6) | Schéma JSON, entrée invalide écartée, expression régulière trop longue ou trop lente refusée | Catalogues valides et piégés |
 | **Pièces** (03 § 5) | Préfixe d'étage, troncature à 40 caractères, doublons, réutilisation d'une pièce existante | |
-| **Historiques** (07) | Raccord statistiques et états bruts, conversion d'unités, binaires et inversion, filtrage `unknown`/`unavailable`, index de compteur, calcul des bornes pour un appareil existant, estimation du volume et de la marge disque, réglage de conservation (H1) | Séries synthétiques |
+| **Historiques** (07) | Raccord statistiques et états bruts, conversion d'unités, binaires et inversion, filtrage `unknown`/`unavailable`, index de compteur (consommation et production), calcul des bornes (date de migration, plus ancien état Gladys), lots de 10 000 états au plus, recalage du curseur à la reprise, estimation du volume et de la marge disque, réglage de conservation (H1) | Séries synthétiques |
 | **Coffre des secrets** (01 § 7.2) | Effacement en fin de phase, à l'abandon et à l'arrêt. **Aucun secret dans les journaux** : on espionne le *logger* et on vérifie qu'aucune valeur secrète n'y apparaît. | |
 | **Export du rapport** | Markdown produit, **expurgé** : aucune valeur secrète ni identifiant matériel | |
 
@@ -57,19 +65,21 @@ Le service complet tourne sur la base de test de Gladys. Les dépendances extern
 
 | Dépendance | Simulation |
 |---|---|
-| **API WebSocket de HA** | Un **faux serveur HA** en mémoire (bibliothèque `ws`, déjà présente) qui rejoue des réponses enregistrées : authentification, registres, `automation/config`, historique, statistiques, erreurs (`unauthorized`, version trop ancienne, coupure de connexion). |
+| **API WebSocket de HA** | Un **faux serveur HA** en mémoire (bibliothèque `ws`, déjà présente) qui rejoue des réponses enregistrées : authentification, registres, `automation/config`, `script/config`, entrées, zones, `get_config`, `lovelace/*`, `supervisor/api`, historique, statistiques, erreurs (`unauthorized`, version trop ancienne, coupure de connexion). |
+| **API REST de HA** | `nock` sur `/api/config/scene/config/<id>` (scènes HA) |
 | **Téléchargement de sauvegarde** | `nock` sur `/api/backup/download/<id>`, qui renvoie une archive de test (§ 7) |
 | **Store des intégrations** | Fonctions `externalIntegration.*` simulées avec Sinon : installation, configuration, appareils découverts |
 | **Catalogue distant** | `nock`, avec les cas « injoignable » (repli sur le cache, puis sur l'instantané embarqué) |
 | **Espace disque** | `system.getDiskSpace` simulé : vert, orange, rouge |
 
 Scénarios couverts :
-1. **Migration complète** en mode A, sur une installation de test : inventaire, installation simulée, rapprochement, création des pièces, appareils et utilisateurs, import d'historique. On vérifie ensuite la base Gladys (objets créés, journal `t_migration_*`).
-2. **Relance** : rien n'est dupliqué. Un élément modifié dans HA est signalé, un nouvel élément est proposé (D13).
-3. **Reprise** après interruption à chaque phase, y compris au milieu de l'historique (curseur, 07 § 6).
-4. **Annulation** (A9) : après une migration sur une instance qui avait déjà des appareils, des pièces et un historique, la base Gladys revient **exactement** à son état initial. On compare un instantané des tables (hors horodatages techniques) avant la migration et après l'annulation. C'est le test qui garantit la promesse faite à l'utilisateur.
+1. **Migration complète** en mode A, sur une installation de test, phases A à F : inventaire, installation simulée, rapprochement, création des pièces, appareils, appareils virtuels, utilisateurs, zones et scènes de présence ; **scènes** issues de scènes HA, de scripts et d'automatisations (dont une réécriture acceptée et une notification) ; import d'historique ; **tableaux de bord** (Accueil et reprise HA). On vérifie ensuite la base Gladys (objets créés, journal `t_migration_*`).
+2. **Relance** : rien n'est dupliqué. Un élément modifié dans HA est signalé, un nouvel élément est proposé (D13). **Aucun historique** n'est importé pour une fonction déjà migrée, ni pour une période postérieure à sa date de migration (07 § 6).
+3. **Reprise** après interruption à chaque phase, y compris au milieu de l'historique (curseur, 07 § 6) et **après un redémarrage** : dossier de travail conservé, tâche `purged-when-restarted` relancée par le service, secrets redemandés (01 § 3.5, § 7.2).
+4. **Annulation** (A9) : après une migration sur une instance qui avait déjà des appareils, des pièces, des tableaux de bord et un historique, la base Gladys revient à son état initial. On compare un instantané des tables (hors horodatages techniques) avant la migration et après l'annulation. Le test couvre **tous les objets** de la table de 01 § 5.4 : scènes (y compris brouillons et scènes de présence), appels `scene.start` ajoutés à la bascule, tableaux de bord et leur ordre, appareils créés (y compris virtuels, et un appareil de plus de 5 000 états), valeurs restaurées (nom, pièce, `keep_history`), utilisateurs, pièces, zones, coordonnées de la maison, réglage de conservation, intégrations. **Seul écart attendu, annoncé à l'utilisateur** : l'historique HA importé sur les appareils préexistants est conservé (01 § 5.5). C'est le test qui garantit la promesse faite à l'utilisateur.
 5. **Coexistence vers bascule** (A11).
-6. **Modes B et C**, et leurs limites (pas de préremplissage en B, automatisations partielles en C).
+6. **Modes B et C**, et leurs limites (pas de préremplissage en B, automatisations partielles en C). Extraction sélective : aucun fichier sensible n'est écrit dans le dossier de travail (on liste le dossier pendant et après le transfert).
+7. **Exécutions simultanées** : une seconde exécution est refusée (`MIGRATION_RUN_IN_PROGRESS`, 09 § 4).
 
 ## 5. Tests Cypress (front)
 
@@ -80,12 +90,13 @@ Comme les autres écrans de Gladys, les réponses du serveur sont simulées avec
 | Accueil « Vous venez de Home Assistant ? » | Suggestions de pièces masquées, bouton « Commencer l'import » à la fin |
 | Écran Source | Erreurs (jeton non administrateur, version trop ancienne), avertissement HTTP, « Continuer sans sauvegarde » |
 | Rapport d'analyse | Onglets, alertes ZHA et Matter, parcours « non migrable » (bouton du forum, canevas sans donnée personnelle) |
-| Choix | Préfixe d'étage, conflits de noms, champs obligatoires des personnes |
+| Choix | Préfixe d'étage, conflits de noms, champs obligatoires des personnes (e-mail facultatif, mot de passe généré sans connexion), présence et zones, coordonnées de la maison, modules, tableaux de bord |
 | Intégrations | Cases à cocher, secrets masqués avec accord individuel, état « À configurer » |
-| Appareils | Confirmation groupée des rapprochements probables, choix entre plusieurs candidats, réappairage qui se coche au fil des découvertes (événements WebSocket simulés) |
-| Scènes HA | Aperçu des actions, scène partielle (liste de ce qui manque), scène bloquée par un appareil, conflit de nom |
-| Historiques | Jauge verte, orange et rouge, décochage avec recalcul |
-| Paramètres → Migration | Reprendre, relancer, annuler avec confirmation renforcée |
+| Appareils | Confirmation groupée des rapprochements probables, choix entre plusieurs candidats, réappairage qui se coche au fil des découvertes (événements WebSocket simulés), rattachement des traqueurs et délai de présence, appareils virtuels |
+| Scènes | Scènes et scripts HA : aperçu des actions, scène partielle (liste de ce qui manque), scène bloquée par un appareil, conflit de nom. Automatisations : convertibles, réécritures décochées par défaut, partielles (appel différé), fiches et brouillon, correspondance des notifications |
+| Historiques | Jauge verte, orange et rouge, décochage avec recalcul, **choix de conservation** (H1, 07 § 1), mention de l'historique conservé sur les appareils existants, pause et reprise |
+| Bilan | Aperçu de l'Accueil et des reprises HA, cartes non reprises, création |
+| Paramètres → Migration | Reprendre, relancer, passer en bascule, annuler avec confirmation renforcée et mention de l'historique conservé, saisie des secrets après un redémarrage |
 | **Mobile** | Les mêmes parcours en fenêtre de téléphone (390 px), comme les tests mobiles existants de Gladys |
 
 ## 6. Bout en bout réel (hors CI de Gladys)
@@ -112,9 +123,15 @@ La CI de Gladys ne peut pas faire tourner un vrai Home Assistant à chaque pull 
 ## 8. Dépendances du service et revue
 
 Le service a son **propre `package.json`** (convention de Gladys : `server/services/<service>/package.json`, installé par `server/cli/install_service_dependencies.js`). Le service `zigbee2mqtt` embarque déjà sa propre bibliothèque YAML (`server/services/zigbee2mqtt/package.json`). Les dépendances nouvelles (lecteur tar en flux, YAML, libsodium) peuvent donc rester **propres au service**, sans toucher aux dépendances du cœur. Cela allège la discussion D18, qui se limite alors :
-- à la route de téléversement (facultative, 01 § 7.3) ;
+- aux nouvelles tables `t_migration_*` et à la page de paramètres ;
 - aux params réservés `GLADYS_HW_*` (03 § 2.4) ;
-- aux nouvelles tables `t_migration_*` et à la page de paramètres.
+- aux nouveaux **`JOB_TYPES`** des tâches du service et à leurs traductions (01 § 3.5, 09 § 3) ;
+- aux nouveaux **`WEBSOCKET_MESSAGE_TYPES`** (01 § 9.2, 09 § 3) ;
+- à la route de téléversement (facultative, 01 § 7.3) ;
+- à la fonction « supprimer les états d'une fonction entre deux dates » (facultative, non bloquante, 01 § 5.4) ;
+- à un statut « en pause » pour `gladys.job` (facultatif, 01 § 3.5).
+
+Ces modifications du cœur sont testées dans le cœur, avec la même exigence de couverture (A7).
 
 **Pour chaque dépendance ajoutée**, la pull request vers Gladys justifie le choix : maintenance active, licence compatible (Apache 2.0 pour Gladys), absence de compilation native (Gladys tourne sur ARM et x86), taille.
 
@@ -123,10 +140,10 @@ Le service a son **propre `package.json`** (convention de Gladys : `server/servi
 La V1 est prête à être proposée à Gladys quand :
 
 1. la CI de Gladys est verte : tests serveur, couverture du *patch* à 100 %, Cypress, lint, traductions, construction ;
-2. le **test d'annulation** (§ 4, scénario 4) passe ;
+2. le **test d'annulation** (§ 4, scénario 4) passe, avec pour seul écart l'historique conservé sur les appareils préexistants (01 § 5.4) ;
 3. la **veille des formats** (§ 6) passe sur la dernière version de HA ;
 4. une **image Docker de test** de Gladys, avec le service, a été proposée à la communauté sur le forum (T2), et au moins **trois installations réelles** ont été migrées de bout en bout, en coexistence, puis annulées sans écart ;
-5. les critères de réussite de la vision (§ 10) sont mesurés sur ces installations : durée, aucun doublon à la relance, statut et raison pour chaque élément non migré ;
+5. les critères de réussite de la vision (§ 10) sont mesurés sur ces installations : durée, aucun doublon à la relance, comportement similaire des scènes en fonctionnement normal (écarts affichés seulement), statut et raison pour chaque élément non migré ;
 6. la spec anglaise est prête dans `docs/specs/` (D17).
 
 ## 10. Décisions
