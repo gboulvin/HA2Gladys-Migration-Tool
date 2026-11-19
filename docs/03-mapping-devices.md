@@ -4,7 +4,7 @@
 - **Dernière mise à jour** : 2026-11-17
 - **Prérequis** : [00 — Vision](00-vision.md), [01 — Architecture](01-architecture.md) (PR #1), [02 — Lecture HA](02-extraction-ha.md) (PR #2)
 - **Notes de recherche** : [clés de rapprochement](research/matching-keys.md) (« K § x »), [usage des intégrations](research/ha-integrations-usage.md), [code Gladys](research/gladys-codebase.md)
-- **À relire avec** : William-De71, auteur du [tracker des intégrations](https://william-de71.github.io/gladys-integrations-tracker/) (D21)
+- **À relire avec** : William-De71, auteur du [tracker des intégrations](https://william-de71.github.io/gladys-integrations-tracker/) (D32)
 
 ---
 
@@ -17,32 +17,53 @@ Cette section définit :
 
 ## 2. Le catalogue en deux niveaux
 
+> **Révisé le 2026-11-19 (D32)** après la relecture de William-De71 sur le forum (sujet 11619). Le catalogue est désormais **produit par l'organisation GladysAssistant**, via l'indexeur du store, et non par le tracker.
+
 ### 2.1 Pourquoi deux niveaux
 
-Le tracker de William travaille **par intégration** : à chaque intégration HA, il associe l'intégration Gladys qui l'équivaut. Notre outil a besoin d'aller **au niveau de chaque appareil** : comment le retrouver, quelle entité HA correspond à quelle fonction Gladys, quelles clés de configuration reprendre.
+Notre outil a besoin de deux choses :
+- savoir **quelle intégration Gladys** remplace une intégration HA ;
+- savoir, **appareil par appareil**, comment le retrouver, quelle entité HA correspond à quelle fonction Gladys et quelles clés de configuration reprendre.
 
-Ces règles fines sont connues de **l'auteur de chaque intégration Gladys**, pas d'un mainteneur central. D'où deux niveaux :
+La seconde est connue de **l'auteur de chaque intégration Gladys**, pas d'un mainteneur central. D'où deux niveaux :
 
-| Niveau | Contenu | Où il vit | Qui l'écrit |
+| Niveau | Contenu | Source | Qui l'écrit |
 |---|---|---|---|
-| **1. Table des intégrations** | Domaine HA → intégrations Gladys cibles (natives ou du store), qualité, statut, `store_slug` | Généré par le **tracker** | Automatique, comme aujourd'hui, avec les corrections de `data/mapping.txt` |
-| **2. Règles fines** | Rapprochement, fonctions, préremplissage, exclusions | Un fichier **`gladys-migration.json`** à la racine du dépôt de **chaque intégration externe**. Pour les services natifs, un fichier central dans le dépôt du tracker. | L'auteur de l'intégration |
+| **1. Table des domaines** | Domaine HA → intégrations Gladys cibles (natives ou du store), qualité, confirmation | Un fichier de données dans le dépôt de l'indexeur du store (`GladysAssistant/integration-store`), **alimenté par le tracker** de William par pull request | Généré en grande partie par le tracker, puis vérifié à la main |
+| **2. Règles fines** | Rapprochement, fonctions, préremplissage, exclusions | **`gladys-migration.json`** à la racine du dépôt de **chaque intégration externe**, lu **au tag de la version publiée**. Pour les services natifs : un fichier dans le dépôt **Gladys**, versionné avec le cœur. | L'auteur de l'intégration, ou l'équipe Gladys pour les services natifs |
 
-Le tracker publie l'ensemble dans un fichier statique, `migration-catalog.json`, sur sa page GitHub Pages. Le service Gladys le télécharge, le met en cache, et embarque un instantané de secours (01 § 3.3).
+L'**indexeur du store** assemble les deux niveaux et publie **`migration-catalog.json`** à côté de `index.json`, avec la même chaîne : publication statique, cache local et fonctionnement hors ligne. Le service Gladys télécharge ce catalogue, le met en cache et embarque un instantané de secours (01 § 3.3).
+
+**Pourquoi l'indexeur plutôt que le tracker** (remarque de William) :
+- le tracker est un **dépôt personnel**, tenu par une seule personne, et dépend du planificateur de GitHub Actions. Ce dernier saute parfois des heures entières. C'est acceptable pour un tableau de suivi, mais pas pour une donnée dont dépendent les instances Gladys ;
+- l'indexeur **lit déjà** le manifeste de chaque intégration. Lire `gladys-migration.json` au même moment est naturel ;
+- le catalogue relève ainsi de l'organisation GladysAssistant, comme le reste du projet (T1).
+
+**Ce que garde le tracker** : la table des domaines (niveau 1), qu'il génère, et la **mesure de la couverture** (§ 2.3).
 
 ### 2.2 Pourquoi pas dans le manifeste des intégrations
 
-Ajouter ces règles au manifeste `gladys-assistant-integration.json` serait plus simple en apparence. Mais **les versions de Gladys déjà installées rejettent les champs de manifeste qu'elles ne connaissent pas** (`docs/specs/external-integrations/contracts/manifest.md`, champ `categories`). Il faudrait modifier le cœur et l'indexeur du store, et les instances existantes casseraient. Un fichier séparé :
-- ne touche ni au cœur, ni au store ;
-- se publie au rythme de l'intégration, sans nouvelle version ;
+Ajouter ces règles au manifeste `gladys-assistant-integration.json` serait plus simple en apparence. Mais **les versions de Gladys déjà installées rejettent les champs de manifeste qu'elles ne connaissent pas** (`docs/specs/external-integrations/contracts/manifest.md`, champ `categories`). Il faudrait modifier le schéma du manifeste dans le cœur, et les instances existantes casseraient. Un fichier séparé :
+- ne touche pas au schéma du manifeste ;
 - reste **générique** : une clé par système source (`home-assistant` aujourd'hui, d'autres demain, A8).
 
-### 2.3 Ce que fait le tracker en plus
+### 2.3 Table des domaines et couverture : le rôle du tracker
 
-1. Pour chaque intégration Gladys connue, il lit `gladys-migration.json` s'il existe, comme il lit déjà le manifeste.
-2. Il **valide** le fichier contre un schéma JSON publié (§ 3.5). Un fichier invalide est écarté et signalé, comme le fait le store avec `rejected.json`.
-3. Il fusionne le niveau 1, le niveau 2 et le fichier central des services natifs dans `migration-catalog.json`.
-4. Il affiche sur sa page une colonne **« Migration HA »** : règles présentes ou non, confiance. Les auteurs d'intégrations voient ainsi ce qui manque. *Cela donne au tracker la seconde vie évoquée : une fois toutes les intégrations créées, il reste l'outil qui mesure la couverture de la migration.*
+**La table des domaines.** Le tracker suit des **lignes de liste** (listes de Pierre-Gilles, analyse du forum), pas des domaines HA. Sur 2 006 lignes, seules 867 pointent vers une page `/integrations/<domaine>/` dont on peut déduire le domaine. Pour les intégrations HACS, il faut lire le `manifest.json` de chaque dépôt. Certaines lignes regroupent plusieurs domaines (« Zigbee (ZHA / Zigbee2MQTT) »), et une même intégration Gladys couvre parfois deux lignes (DLNA DMR et DMS). D'où une **vraie table domaine HA → intégration Gladys**, distincte des lignes du tracker :
+- le tracker en **génère l'essentiel** ;
+- le reste est **vérifié à la main** et marqué `confirmed: true` ;
+- la liste ne couvre qu'une partie de HA : le cas « **domaine absent du catalogue** » sera fréquent. Il est traité comme « non migrable », avec le parcours D15.
+
+**La mesure de la couverture**, par **niveaux** plutôt qu'en pourcentage :
+
+| Niveau | Signification |
+|---|---|
+| 0 | Aucun équivalent Gladys |
+| 1 | Installable, configuration manuelle |
+| 2 | Appareils **rapprochés automatiquement** (`GLADYS_HW_*` ou règles) |
+| 3 | Fonctions **et historique** repris |
+
+Le tracker affiche le niveau de chaque domaine et un **taux global pondéré par l'usage dans HA**, par exemple « X % des installations HA ont leurs intégrations couvertes au niveau 2 ou plus ». C'est un ordre de grandeur, puisque les sources de pourcentages ne sont pas homogènes (`research/ha-integrations-usage.md`). L'outil de migration réutilise **les mêmes niveaux** dans son rapport d'analyse.
 
 ### 2.4 Révision : l'identité matérielle publiée par les intégrations (M1, proposition)
 
@@ -60,7 +81,7 @@ Ajouter ces règles au manifeste `gladys-assistant-integration.json` serait plus
 | `GLADYS_HW_IEEE` | IEEE normalisée, 16 caractères hexadécimaux en minuscules | connexion `zigbee` |
 | `GLADYS_HW_SERIAL` | Numéro de série constructeur | `serial_number`, identifiant Matter `serial_…` |
 | `GLADYS_HW_UDN` | UDN UPnP sans le préfixe `uuid:` | connexion `upnp` |
-| `GLADYS_HW_VENDOR_ID` | Identifiant propre au fabricant ou à son cloud (id Tuya, UUID Cast…) | `identifiers` du domaine de l'intégration, déclaré au niveau 1 |
+| `GLADYS_HW_VENDOR_ID` | Identifiant propre au fabricant ou à son cloud, **préfixé par un espace de noms** déclaré dans la convention : `tuya:bf12…`, `cast:3f2a…`. Sans espace de noms, la valeur n'a pas de sens, car deux fabricants peuvent avoir des identifiants identiques (remarque de William). | `identifiers` du domaine HA associé à cet espace de noms au niveau 1 |
 
 Ce que cela apporte :
 - **Le rapprochement devient générique.** Une seule règle dans l'outil (connexion HA ↔ param `GLADYS_HW_*`) remplace les règles par intégration du § 3.3, pour la grande majorité des cas.
@@ -112,16 +133,22 @@ Comme vous le soulignez, chaque nouvelle version du SDK oblige les intégrations
 ```
 
 - `quality` : `same_name`, `equivalent`, `partial` (repris du tracker).
-- `status` : `native`, `store`, `in_progress`, `free`. Seuls `native` et `store` sont **installables** par l'outil. Les autres alimentent les messages de la décision D15 (« quelqu'un y travaille », ou « créez-la »).
-- Plusieurs `targets` peuvent exister : l'utilisateur choisit, la première étant recommandée.
+- `status` : `native`, `store`, `in_progress`, `free`.
+- `confirmed` : la correspondance a été vérifiée à la main. Le rapprochement automatique du tracker n'est juste qu'à environ 97 %, ce qui suffit pour un tableau de suivi, mais pas pour installer une intégration chez quelqu'un.
+- **Installable automatiquement** (CT1) : seulement une cible `native` ou `store` qui a des **règles de migration**, qui publie `GLADYS_HW_*`, **ou** qui est `confirmed`. Les autres sont seulement **suggérées** : l'utilisateur les voit, avec un avertissement, et décide. Les cibles `in_progress` et `free` alimentent les messages de D15 (« quelqu'un y travaille », ou « créez-la »).
+- **Ordre des cibles** (CT2), quand un domaine en a plusieurs : d'abord celles qui ont des **règles de migration** ou `GLADYS_HW_*`, puis celles **publiées dans le store**, puis la plus **récemment active**. La première est recommandée. On évite ainsi un choix éditorial laissé au mainteneur du catalogue. Les doublons repérés par le tracker (Tasmota, Philips Air…) sont départagés par ce critère.
 
 ### 3.2 Niveau 2 : `gladys-migration.json`
+
+**Règles de sécurité et de version** (CT3, CT4) :
+- **Domaines autorisés** : l'indexeur ne retient les règles d'un dépôt **que pour les domaines HA qui lui sont rattachés au niveau 1**. Sans cela, un dépôt pourrait déclarer `"domains": ["shelly"]` et se faire remettre des identifiants qui ne le concernent pas (préremplissage `config`). Toute règle hors de ces domaines est **écartée et signalée** dans un rapport public, comme le `rejected.json` du store.
+- **Version** : le fichier est lu **au tag de la version publiée** dans le store, et non sur la branche principale. Les règles correspondent ainsi au code réellement installé. Un champ facultatif `min_integration_version` permet en plus de signaler des règles qui exigent une version minimale de l'intégration.
 
 Exemple complet pour Shelly (règles tirées de K § 6) :
 
 ```json
 {
-  "$schema": "https://william-de71.github.io/gladys-integrations-tracker/schema/gladys-migration.v1.json",
+  "$schema": "https://integration-store-storage.gladysassistant.com/schema/gladys-migration.v1.json",
   "format_version": 1,
   "sources": {
     "home-assistant": {
@@ -213,7 +240,7 @@ Intérêt selon les intégrations (K § 1) :
 
 ### 3.6 Schéma et validation
 
-Le schéma JSON `gladys-migration.v1.json` est publié par le tracker. Il est aussi **vendu** (copié) dans le service Gladys, qui revalide chaque entrée du catalogue avant usage : le catalogue est une donnée externe, non modérée, comme l'index du store. Les expressions régulières sont **bornées** (longueur maximale, exécution avec délai) pour éviter les expressions pathologiques.
+Le schéma JSON `gladys-migration.v1.json` est publié avec l'indexeur du store (`GladysAssistant/integration-store`). Il est aussi **vendu** (copié) dans le service Gladys, qui revalide chaque entrée du catalogue avant usage : le catalogue est une donnée externe, non modérée, comme l'index du store. Les expressions régulières sont **bornées** (longueur maximale, exécution avec délai) pour éviter les expressions pathologiques.
 
 ## 4. Couverture V1 (D19, D20)
 
@@ -333,10 +360,16 @@ Pour ZHA → Zigbee2MQTT et pour Matter, il faut appairer de nouveau les apparei
 |---|---|
 | M1 | `gladys-migration.json` est retenu comme nom du fichier de niveau 2. **Toutes** les intégrations sont appelées à adopter la migration, au moment des mises à jour imposées par les nouvelles versions du SDK. Proposition associée : identité matérielle publiée dans des params réservés `GLADYS_HW_*`, via le SDK et illustrée par le modèle (§ 2.4), ce qui rend le fichier facultatif. *À discuter avec William et Pierre-Gilles avant de figer (ex-Q03-1).* |
 | M2 | ~~Présence en V2~~ : **remplacée par D30**, la présence passe en V1. Les **utilisateurs** restent en **V1**. |
+| CT1 | Une cible n'est **installable automatiquement** que si elle a des règles de migration, publie `GLADYS_HW_*`, ou est **confirmée** à la main. Sinon, elle est suggérée (§ 3.1). |
+| CT2 | Ordre des cibles : règles présentes, puis store, puis activité récente (§ 3.1). |
+| CT3 | Les règles d'un dépôt ne valent que pour les domaines qui lui sont **rattachés au niveau 1**. Le reste est écarté et signalé (§ 3.2). |
+| CT4 | `gladys-migration.json` est lu **au tag de la version publiée**, avec `min_integration_version` facultatif (§ 3.2). |
+| CT5 | Couverture mesurée en **niveaux 0 à 3**, avec un taux pondéré par l'usage dans HA. Les mêmes niveaux servent au rapport de l'outil (§ 2.3). |
 | M3 | Réappairage (ZHA, Matter) avec **rapprochement automatique au fil de l'eau** et validation groupée des seuls cas ambigus (§ 9, ex-Q03-3). |
 
 ## 11. Questions ouvertes
 
 | # | Question |
 |---|---|
-| Q03-1 bis | Valider avec William et Pierre-Gilles la convention `GLADYS_HW_*` : noms des params, modification du cœur, aide du SDK, calendrier d'adoption par les intégrations existantes. |
+| Q03-1 bis | Valider avec Pierre-Gilles la convention `GLADYS_HW_*` : noms des params, espaces de noms de `GLADYS_HW_VENDOR_ID`, modification du cœur, aide du SDK, calendrier d'adoption. *William approuve le principe et publiera la MAC dans gladys-esphome dès que le SDK le permettra.* |
+| Q03-2 bis | **Indexeur du store** (Pierre-Gilles) : accepter de lire `gladys-migration.json` au tag publié, d'héberger la table des domaines et de publier `migration-catalog.json`. Point connexe signalé par William : l'indexeur bute sur la limite de **1 000 résultats** de la recherche GitHub, et une vingtaine d'intégrations portant le topic manquent aujourd'hui dans l'index. |

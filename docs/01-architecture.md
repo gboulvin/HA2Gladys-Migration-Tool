@@ -45,8 +45,8 @@ Les tables du journal sont nommées `t_migration_*` et portent une colonne `sour
                     └────────────────────────────────────────────────┼──────────────────────────────┘
                                                                      │
                                                        ┌─────────────┴────────────┐
-                                                       │ Catalogue distant (D21)  │
-                                                       │ base : tracker William   │
+                                                       │ Catalogue distant (D32)  │
+                                                       │ indexeur du store        │
                                                        └──────────────────────────┘
 ```
 
@@ -88,9 +88,9 @@ Structure normalisée et indépendante de la source. Elle est décrite au § 4.
 
 ### 3.3 Client du catalogue
 
-- Il télécharge le catalogue distant (D12, D21). Il garde un **cache local** et embarque un **instantané** dans le code du service, au cas où le catalogue serait injoignable lors de la première utilisation.
+- Il télécharge le catalogue distant (D12, D32), **publié par l'indexeur du store** de l'organisation GladysAssistant, à côté de `index.json`. Il garde un **cache local** et embarque un **instantané** dans le code du service, au cas où le catalogue serait injoignable lors de la première utilisation.
 - Il reprend le schéma déjà éprouvé du **store des intégrations** (`docs/specs/external-integrations/core/store.md`) : index statique publié sur GitHub Pages, rafraîchi périodiquement, cache local et fonctionnement dégradé hors ligne.
-- Le format du catalogue sera défini en section 03, avec William-De71.
+- Les règles des **services natifs** (zigbee2mqtt, mqtt, matter) sont dans le dépôt Gladys, versionnées avec le cœur. Le format du catalogue est défini en section 03.
 
 ### 3.4 Analyseur
 
